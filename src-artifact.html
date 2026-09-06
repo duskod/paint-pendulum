@@ -86,7 +86,7 @@
   <h1>Paint Pendulum</h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Drag the board's edges to resize it; paint only lands on the board</small></div>
+<div id="hint">Pull the can, let go<small>Drag the board's edges to resize it, its top handle to move it; paint only lands on the board</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
@@ -308,13 +308,17 @@ function render(){
   else ctx.drawImage(paint,0,0,W,H);
   ctx.restore();
   rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke();
+  // carrying handle on the top edge: drag it to move the board
+  { const hr=handleRect(), lit=hover==='move'||resizing==='move';
+    ctx.fillStyle=lit?'#e6cb94':'#b08d57'; rr(ctx,hr.x,hr.y,hr.w,hr.h,10); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.45)'; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.arc(hr.x+hr.w/2+i*7,hr.y+hr.h/2,1.4,0,TAU); ctx.fill(); } }
   // corner ticks so the edges read as handles
   ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=2; const L=12;
   for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
     ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke();
   }
-  if(resizing){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
-    ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-8>20?B.y-8:B.y+B.h+18); }
+  if(resizing&&resizing!=='move'){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
+    ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-24>20?B.y-24:B.y+B.h+18); }
   ctx.restore();
 
   const tf=Math.sqrt(2*P.h/G);
@@ -356,15 +360,19 @@ function ptrPx(e){const r=view.getBoundingClientRect();const sx=e.clientX-r.left
 function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 /* board edge handles: which edge or corner is under the pointer */
 let resizing=null, hover=null;
+function handleRect(){ boardPx(); const w=Math.min(64,B.w*0.4); return {x:B.x+B.w/2-w/2,y:B.y-9,w,h:20}; }
 function edgeAt(sx,sy,tol){
+  const hr=handleRect(); if(sx>=hr.x-4&&sx<=hr.x+hr.w+4&&sy>=hr.y-4&&sy<=hr.y+hr.h+4) return 'move';
   boardPx(); const nx=Math.abs(sx-B.x)<tol, px=Math.abs(sx-(B.x+B.w))<tol, ny=Math.abs(sy-B.y)<tol, py=Math.abs(sy-(B.y+B.h))<tol;
   const inX=sx>B.x-tol&&sx<B.x+B.w+tol, inY=sy>B.y-tol&&sy<B.y+B.h+tol;
   if(!inX||!inY) return null;
   const h=(ny?'n':py?'s':'')+(nx?'w':px?'e':''); return h||null;
 }
-const CURS={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-resize',sw:'nesw-resize',nw:'nwse-resize',se:'nwse-resize'};
+const CURS={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-resize',sw:'nesw-resize',nw:'nwse-resize',se:'nwse-resize',move:'move'};
+let moveFrom=null;
 function applyResize(h,sx,sy){
   const mx=(sx-W/2)/ppm,my=(sy-H/2)/ppm,min=0.12;
+  if(h==='move'){ if(moveFrom){Bm.x=moveFrom.bx+(mx-moveFrom.mx);Bm.y=moveFrom.by+(my-moveFrom.my)} return; }
   if(h.includes('w')){const r=Bm.x+Bm.w;Bm.x=Math.min(mx,r-min);Bm.w=r-Bm.x}
   if(h.includes('e')){Bm.w=Math.max(min,mx-Bm.x)}
   if(h.includes('n')){const b=Bm.y+Bm.h;Bm.y=Math.min(my,b-min);Bm.h=b-Bm.y}
@@ -378,8 +386,9 @@ function placeCan(q){
 view.addEventListener('pointerdown',e=>{
   if(e.button!==undefined&&e.button!==0) return;
   view.setPointerCapture(e.pointerId);
-  const [sx,sy]=ptrPx(e), h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
-  if(h){ resizing=h; view.style.cursor=CURS[h]; return; }
+  const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
+  if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
+  if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
   view.classList.add('grabbing');
   grabbed=true; running=false; flowing=false; stillFor=0;
   bd.p=[0,0,P.L2]; bd.v=[0,0,0];
@@ -393,7 +402,7 @@ view.addEventListener('pointermove',e=>{
 });
 function cancelGrab(){ if(!grabbed) return; grabbed=false; view.classList.remove('grabbing'); can.p=[0,0,P.L]; can.v=[0,0,0]; hist=[]; }
 function release(e){
-  if(resizing){ resizing=null; view.style.cursor=''; saveBoard(); return; }
+  if(resizing){ resizing=null; moveFrom=null; view.style.cursor=''; saveBoard(); return; }
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing');
   const t=performance.now(); let a=hist[0]; for(const h of hist){ if(t-h.t>=60) a=h; }
   const b=hist[hist.length-1]; const dt=Math.max(0.016,(b.t-a.t)/1000);
