@@ -7,7 +7,7 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 
 ## Playing
 - **Pull the can and let go.** The speed and direction you release it with set the swing. `Esc` cancels a pull.
-- **Catch** stops it (or press `space`). **Undo** reverses the last launch, removal or clear.
+- **Tap the board** (or press **Catch** / `space`) to catch it. **Undo** reverses the last launch, removal or clear.
 - **Nozzle**: a two-tone ribbon, a single colour, or a bar of 3 to 6 holes in a line that leaves
   parallel trails. **Gap** sets the hole spacing, **Twist** how fast the can (and bar) turns.
 - **Sway** hangs the board on its own strings so it swings too, like a harmonograph. **Turn** spins it.
@@ -19,6 +19,8 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 - Paint sets, board and desk each have a **Custom** chip with colour pickers. Choices are remembered.
 
 The control tray drags by its grip; drop it near a side to dock it as a column, near the top or bottom to lie flat. Double-click the grip to reset.
+
+On a phone a slim bar at the bottom carries Catch, Undo, Clear, Save and More; the full tray opens as a half-height sheet and closes as soon as you touch the board.
 
 Keys: `space` catch, `z` undo, `c` clear, `s` save, `f` fullscreen, `h` hide the tray.
 

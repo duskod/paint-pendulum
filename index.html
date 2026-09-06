@@ -98,11 +98,23 @@
   #tab{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.9);border:1px solid var(--tray-edge);border-radius:999px;padding:8px 13px;cursor:pointer;z-index:2}
   #toast{position:fixed;left:50%;top:48px;transform:translateX(-50%);font:600 12px var(--body);background:rgba(24,20,16,.92);color:var(--ink);border:1px solid var(--tray-edge);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
   #toast.show{opacity:1}
-  @media (max-width:720px){
-    #tray{padding:10px 12px}
-    .row{gap:8px 14px}
+  #quick{display:none}
+  @media (max-width:720px), (pointer:coarse) and (max-height:600px){
+    #tray{padding:0 12px 10px;max-height:min(52vh,calc(100vh - 80px));width:calc(100vw - 12px)}
+    .row{gap:8px 12px}
     .sl input{width:74px}
     .btns{margin-left:0;width:100%;justify-content:flex-end}
+    .hud{top:8px;left:12px;right:12px}
+    h1{font-size:11px;letter-spacing:.1em;white-space:nowrap}
+    .readout{font-size:11px}
+    #hint{top:38%}
+    #tab{display:none}
+    #catch,#undo,#clear,#save{display:none}
+    #quick{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:rgba(24,20,16,.94);border-top:1px solid var(--tray-edge);backdrop-filter:blur(8px);z-index:3}
+    .q{flex:1;font:600 13px var(--body);color:var(--ink);background:#2a231c;border:1px solid #4a3d31;border-radius:9px;padding:10px 4px;cursor:pointer;min-width:0}
+    .q:disabled{opacity:.4}
+    .q.on{background:var(--accent);color:#08201f;border-color:transparent}
+    #tray:not(.hidden)+* ~ #quick{border-top-color:transparent}
   }
   @media (prefers-reduced-motion:reduce){#tray,#hint{transition:none}}
 </style>
@@ -117,7 +129,7 @@
   <h1>Paint Pendulum</h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
+<div id="hint">Pull the can, let go<small>Tap the board to catch it. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
@@ -157,12 +169,20 @@
   </div>
 </aside>
 <button id="tab" aria-controls="tray">Hide</button>
+<nav id="quick" aria-label="Quick actions">
+  <button class="q" id="qCatch">Catch</button>
+  <button class="q" id="qUndo" disabled>Undo</button>
+  <button class="q" id="qClear">Clear</button>
+  <button class="q" id="qSave">Save</button>
+  <button class="q" id="qMore" aria-controls="tray">More</button>
+</nav>
 <div id="toast" role="status"></div>
 
 <script>
 'use strict';
 const G=9.81, V0=2.5e-4, FILM=3.2e-4, DT=1/240, TAU=Math.PI*2;
 const $=s=>document.querySelector(s);
+const phone=()=>getComputedStyle($('#quick')).display!=='none';
 const view=$('#view'), ctx=view.getContext('2d');
 const paint=document.createElement('canvas'), pctx=paint.getContext('2d');
 const table=document.createElement('canvas'), tctx=table.getContext('2d');
@@ -208,7 +228,8 @@ function resize(){
   view.width=Math.round(W*dpr); view.height=Math.round(H*dpr);
   const m=Math.max(12,Math.min(W,H)*0.04);
   ppm=Math.min(W-2*m,H-2*m)/1.15;
-  if(!Bm||!(Bm.w>0)){ Bm={x:-(W-2*m)/ppm/2,y:-(H-2*m)/ppm/2,w:(W-2*m)/ppm,h:(H-2*m)/ppm}; }
+  if(!Bm||!(Bm.w>0)){ const top=phone()?Math.max(m,40):m, bot=phone()?Math.max(m,60):m;
+    Bm={x:-(W-2*m)/ppm/2,y:(top-H/2)/ppm,w:(W-2*m)/ppm,h:(H-top-bot)/ppm}; }
   boardPx(); drawTable(); rebuild();
   sprev=[];
 }
@@ -414,7 +435,7 @@ function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 let resizing=null, hover=null;
 function handleRect(){ boardPx(); const w=Math.min(64,B.w*0.4); return {x:B.x+B.w/2-w/2,y:B.y-9,w,h:20}; }
 function edgeAt(sx,sy,tol){
-  const hr=handleRect(); if(sx>=hr.x-4&&sx<=hr.x+hr.w+4&&sy>=hr.y-4&&sy<=hr.y+hr.h+4) return 'move';
+  const hr=handleRect(), pad=tol>14?12:4; if(sx>=hr.x-pad&&sx<=hr.x+hr.w+pad&&sy>=hr.y-pad&&sy<=hr.y+hr.h+pad) return 'move';
   boardPx(); const nx=Math.abs(sx-B.x)<tol, px=Math.abs(sx-(B.x+B.w))<tol, ny=Math.abs(sy-B.y)<tol, py=Math.abs(sy-(B.y+B.h))<tol;
   const inX=sx>B.x-tol&&sx<B.x+B.w+tol, inY=sy>B.y-tol&&sy<B.y+B.h+tol;
   if(!inX||!inY) return null;
@@ -445,6 +466,7 @@ view.addEventListener('pointerdown',e=>{
   if(e.button===1||e.button===2){ view.setPointerCapture(e.pointerId); panning={id:e.pointerId,x:e.clientX,y:e.clientY}; e.preventDefault(); return; }
   if(e.button!==undefined&&e.button!==0) return;
   if(panning) return;
+  if(phone()&&!tray.classList.contains('hidden')) setTray(false);
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
@@ -469,7 +491,11 @@ function release(e){
     resizing=null; moveFrom=null; view.style.cursor=''; saveBoard(); return; }
   if(panning&&panning.id===e.pointerId){ panning=null; savePan(); return; }
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing');
-  const t=performance.now(); let a=hist[0]; for(const h of hist){ if(t-h.t>=60) a=h; }
+  const t=performance.now();
+  { // a tap (no real pull) just catches the can
+    const h0=hist[0],hn=hist[hist.length-1]; let far=0; for(const h of hist) far=Math.max(far,Math.hypot(h.q[0]-h0.q[0],h.q[1]-h0.q[1])*ppm);
+    if(far<10&&t-h0.t<350){ catchCan(); toast('Caught'); return; } }
+  let a=hist[0]; for(const h of hist){ if(t-h.t>=60) a=h; }
   const b=hist[hist.length-1]; const dt=Math.max(0.016,(b.t-a.t)/1000);
   let vq=[(b.q[0]-a.q[0])/dt,(b.q[1]-a.q[1])/dt]; const sp=Math.hypot(vq[0],vq[1]); if(sp>2.4){vq[0]*=2.4/sp;vq[1]*=2.4/sp}
   const vp=rotToPivot(vq[0],vq[1]); const p=can.p;
@@ -486,12 +512,12 @@ function catchCan(){grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];ca
 function clearBoard(){ if(!swings.length) return; remember_state(); stopCan(); swings=[]; cur=null; rebuild(); listSwings(); angAcc=0; T=0; }
 /* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
 const history=[];
-function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=false; }
+function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=$('#qUndo').disabled=false; }
 function stopCan(){ grabbed=false; running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; bd.p=[0,0,P.L2]; bd.v=[0,0,0]; sprev=[]; qprev=null; }
 function undoLast(){
   const prev=history.pop(); if(!prev) return;
   stopCan(); swings=prev; cur=null; rebuild(); listSwings();
-  $('#undo').disabled=history.length===0;
+  $('#undo').disabled=$('#qUndo').disabled=history.length===0;
 }
 /* clicking a swing chip opens its editor: the chip arms, the swing stays highlighted, and you can give it
    another palette (or custom colours), remove it (asked first), or close with Done / Esc */
@@ -530,7 +556,7 @@ function removeSwing(i){
 }
 /* one chip per swing in the tray: hover to see it on its own, click to remove it */
 let hl=null;
-function listSwings(keepEditor){ requestAnimationFrame(placeTray);
+function listSwings(keepEditor){ requestAnimationFrame(placeTray); $('#swingHint').textContent=phone()?'tap one to recolour or remove it':'hover to see one, click to recolour or remove it';
   const host=$('#swingChips'); host.innerHTML=''; $('#swingRow').hidden=!swings.length; if(armed>=0&&!keepEditor) disarm();
   swings.forEach((sw,i)=>{
     const b=document.createElement('button'); b.className='chip swing'; b.title='Remove swing '+(i+1); b.setAttribute('aria-label',b.title);
@@ -613,10 +639,11 @@ const tray=$('#tray'),tab=$('#tab');
 let trayPos=null; try{trayPos=JSON.parse(localStorage.getItem('pp-tray')||'null')}catch(e){}
 if(!trayPos) trayPos={dock:'bottom',x:0,y:0};
 function placeTray(){
-  const vert=trayPos.dock==='left'||trayPos.dock==='right'; tray.classList.toggle('vert',vert);
+  const vert=!phone()&&(trayPos.dock==='left'||trayPos.dock==='right'); tray.classList.toggle('vert',vert);
   const w=tray.offsetWidth,h=tray.offsetHeight,m=10,W=innerWidth,H=innerHeight;
   let x=trayPos.x,y=trayPos.y;
-  if(trayPos.dock==='bottom'){x=(W-w)/2;y=H-h-m-14}
+  if(phone()){ x=(W-w)/2; y=H-h-$('#quick').offsetHeight-6; }
+  else if(trayPos.dock==='bottom'){x=(W-w)/2;y=H-h-m-14}
   else if(trayPos.dock==='top'){x=(W-w)/2;y=m}
   else if(trayPos.dock==='left'){x=m;y=Math.min(Math.max(m,y),Math.max(m,H-h-m))}
   else if(trayPos.dock==='right'){x=W-w-m;y=Math.min(Math.max(m,y),Math.max(m,H-h-m))}
@@ -640,8 +667,11 @@ function placeTray(){
   placeTray(); requestAnimationFrame(placeTray);
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(placeTray);
 })();
-tab.addEventListener('click',()=>{tray.classList.toggle('hidden');tab.textContent=tray.classList.contains('hidden')?'Controls':'Hide'});
-if(Math.min(innerWidth,innerHeight)<560){tray.classList.add('hidden');tab.textContent='Controls'}
+function setTray(show){ tray.classList.toggle('hidden',!show); tab.textContent=show?'Hide':'Controls'; $('#qMore').classList.toggle('on',show); $('#qMore').textContent=show?'Close':'More'; if(show) requestAnimationFrame(placeTray); }
+tab.addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
+$('#qMore').addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
+$('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qClear').addEventListener('click',clearBoard); $('#qSave').addEventListener('click',save);
+if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
   if(e.key==='Escape'){if(armed>=0)disarm();cancelGrab();return}
