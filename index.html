@@ -37,6 +37,7 @@
     color-scheme:dark;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{height:100%}
   body{margin:0;background:#6d4c2e;color:var(--ink);font-family:var(--body);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
   #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
@@ -48,8 +49,21 @@
   #hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);font:700 clamp(18px,3.4vw,26px) var(--display);color:rgba(241,236,226,.9);pointer-events:none;transition:opacity .7s;text-align:center;text-shadow:0 2px 14px #000;letter-spacing:.02em}
   #hint small{display:block;font:500 13px var(--body);color:var(--muted);margin-top:8px;letter-spacing:.04em}
   #hint.gone{opacity:0}
-  #tray{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(1040px,calc(100vw - 20px));background:rgba(24,20,16,.94);border:1px solid var(--tray-edge);border-radius:14px;padding:12px 16px 10px;display:flex;flex-direction:column;gap:10px;box-shadow:0 14px 44px rgba(0,0,0,.55);backdrop-filter:blur(8px);transition:transform .35s cubic-bezier(.2,.7,.2,1),opacity .3s}
-  #tray.hidden{transform:translate(-50%,calc(100% + 40px));opacity:0;pointer-events:none}
+  #tray{position:fixed;left:0;top:0;width:min(1040px,calc(100vw - 20px));background:rgba(24,20,16,.94);border:1px solid var(--tray-edge);border-radius:14px;padding:0 16px 10px;display:flex;flex-direction:column;gap:10px;box-shadow:0 14px 44px rgba(0,0,0,.55);backdrop-filter:blur(8px);transition:opacity .3s,transform .3s;max-height:calc(100vh - 20px);overflow:hidden auto;overscroll-behavior:contain;z-index:2}
+  #tray.hidden{opacity:0;pointer-events:none;transform:scale(.97)}
+  #tray.moving{transition:none;opacity:.92}
+  #grip{height:18px;flex:none;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;margin:0 -16px;border-radius:14px 14px 0 0}
+  #grip::before{content:"";width:44px;height:4px;border-radius:2px;background:radial-gradient(circle,#6a5a48 1.6px,transparent 1.8px) 0 0/8px 4px}
+  #grip:hover::before{background:radial-gradient(circle,#a8967d 1.6px,transparent 1.8px) 0 0/8px 4px}
+  #tray.moving #grip{cursor:grabbing}
+  /* docked to a side: one narrow column */
+  #tray.vert{width:250px;padding:0 12px 10px}
+  #tray.vert .row{flex-direction:column;align-items:flex-start;gap:10px}
+  #tray.vert .group{flex-wrap:wrap}
+  #tray.vert .chips{flex-wrap:wrap}
+  #tray.vert .btns{margin-left:0;flex-wrap:wrap}
+  #tray.vert .sl input{width:110px}
+  #tray.vert #swingEdit{flex-wrap:wrap}
   .row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
   .group{display:flex;align-items:center;gap:8px}
   .lbl{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -106,6 +120,7 @@
 <div id="hint">Pull the can, let go<small>Drag the board's edges to resize it; paint only lands on the board</small></div>
 
 <aside id="tray" aria-label="Controls">
+  <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
   <div class="row">
     <div class="group"><span class="lbl">Paint</span><div class="chips" id="pairs"></div>
       <span class="custom" id="custom" hidden><span id="customInputs" style="display:contents"></span><button class="b sm" id="roll" title="Roll a fresh set of six">Roll</button></span>
@@ -440,7 +455,7 @@ function undoLast(){
 let armed=-1, editTouched=false;
 function swingColours(sw){ return sw.mode==='solid'?1:sw.mode==='ribbon'?2:+sw.mode; }
 function askRemove(i){ openSwing(i); }
-function openSwing(i){
+function openSwing(i){ requestAnimationFrame(placeTray);
   armed=i; hl=swings[i]; editTouched=false;
   [...$('#swingChips').children].forEach((c,j)=>c.classList.toggle('armed',j===i));
   $('#swingName').textContent='Swing '+(i+1);
@@ -461,7 +476,7 @@ function recolour(i,newCols,pushHistory=true){
   const sw={cols:newCols.slice(),pts:old.pts,mode:old.mode}; swings[i]=sw; if(cur===old) cur=sw; if(hl===old) hl=sw;
   rebuild(); listSwings(true);
 }
-function disarm(){ armed=-1; hl=null; $('#swingEdit').hidden=true; $('#confirm').hidden=true; $('#swingHint').hidden=false; [...$('#swingChips').children].forEach(c=>c.classList.remove('armed')); }
+function disarm(){ requestAnimationFrame(placeTray); armed=-1; hl=null; $('#swingEdit').hidden=true; $('#confirm').hidden=true; $('#swingHint').hidden=false; [...$('#swingChips').children].forEach(c=>c.classList.remove('armed')); }
 $('#swingDone').addEventListener('click',disarm);
 $('#swingRemove').addEventListener('click',()=>{ $('#confirmText').textContent='Remove swing '+(armed+1)+'?'; $('#swingActs').hidden=true; $('#confirm').hidden=false; $('#confirmYes').focus(); });
 $('#confirmYes').addEventListener('click',()=>{const i=armed; disarm(); removeSwing(i)});
@@ -472,7 +487,7 @@ function removeSwing(i){
 }
 /* one chip per swing in the tray: hover to see it on its own, click to remove it */
 let hl=null;
-function listSwings(keepEditor){
+function listSwings(keepEditor){ requestAnimationFrame(placeTray);
   const host=$('#swingChips'); host.innerHTML=''; $('#swingRow').hidden=!swings.length; if(armed>=0&&!keepEditor) disarm();
   swings.forEach((sw,i)=>{
     const b=document.createElement('button'); b.className='chip swing'; b.title='Remove swing '+(i+1); b.setAttribute('aria-label',b.title);
@@ -518,7 +533,7 @@ function buildCustom(){
   for(let k=0;k<6;k++){ const i=document.createElement('input'); i.type='color'; i.value=CUSTOM[k+1]; i.setAttribute('aria-label','Colour '+(k+1));
     i.style.opacity=k<n?'1':'.4'; i.title=k<n?'Colour '+(k+1):'Colour '+(k+1)+' (used with more nozzles)';
     i.addEventListener('input',()=>{CUSTOM[k+1]=i.value;cols=CUSTOM.slice(1);remember('pp-custom',CUSTOM.slice(1))}); host.appendChild(i); }
-  $('#custom').hidden=!customOn();
+  $('#custom').hidden=!customOn(); requestAnimationFrame(placeTray);
 }
 function buildPairs(){ chips($('#pairs'),PAIRS,()=>pairSel,(it,i)=>{pairSel=i;cols=it.slice(1);buildCustom()},(b,it)=>{b.style.background=chipBg(it)}); }
 buildPairs(); buildCustom();
@@ -552,6 +567,37 @@ $('#fit').addEventListener('click',()=>{Bm=null;saveBoard();resize()});
 $('#save').addEventListener('click',save);
 $('#full').addEventListener('click',fullscreen);
 const tray=$('#tray'),tab=$('#tab');
+/* the tray floats: drag it by the grip anywhere, or drop it near an edge to dock (sides become a column) */
+let trayPos=null; try{trayPos=JSON.parse(localStorage.getItem('pp-tray')||'null')}catch(e){}
+if(!trayPos) trayPos={dock:'bottom',x:0,y:0};
+function placeTray(){
+  const vert=trayPos.dock==='left'||trayPos.dock==='right'; tray.classList.toggle('vert',vert);
+  const w=tray.offsetWidth,h=tray.offsetHeight,m=10,W=innerWidth,H=innerHeight;
+  let x=trayPos.x,y=trayPos.y;
+  if(trayPos.dock==='bottom'){x=(W-w)/2;y=H-h-m-14}
+  else if(trayPos.dock==='top'){x=(W-w)/2;y=m}
+  else if(trayPos.dock==='left'){x=m;y=Math.min(Math.max(m,y),Math.max(m,H-h-m))}
+  else if(trayPos.dock==='right'){x=W-w-m;y=Math.min(Math.max(m,y),Math.max(m,H-h-m))}
+  x=Math.min(Math.max(0,x),Math.max(0,W-w)); y=Math.min(Math.max(0,y),Math.max(0,H-h));
+  tray.style.left=x+'px'; tray.style.top=y+'px';
+}
+(function(){
+  const grip=$('#grip'); let drag=null;
+  grip.addEventListener('pointerdown',e=>{ try{grip.setPointerCapture(e.pointerId)}catch(err){} drag={dx:e.clientX-tray.offsetLeft,dy:e.clientY-tray.offsetTop}; tray.classList.add('moving'); e.preventDefault(); });
+  grip.addEventListener('pointermove',e=>{ if(!drag) return; const x=e.clientX-drag.dx,y=e.clientY-drag.dy; tray.style.left=x+'px'; tray.style.top=y+'px';
+    // preview the column layout when near a side
+    const near=40, w=tray.offsetWidth; tray.classList.toggle('vert', x<near||x+w>innerWidth-near); });
+  const drop=e=>{ if(!drag) return; drag=null; tray.classList.remove('moving');
+    const x=tray.offsetLeft,y=tray.offsetTop,w=tray.offsetWidth,h=tray.offsetHeight,near=40;
+    if(x<near) trayPos={dock:'left',x,y}; else if(x+w>innerWidth-near) trayPos={dock:'right',x,y};
+    else if(y<near) trayPos={dock:'top',x,y}; else if(y+h>innerHeight-near) trayPos={dock:'bottom',x,y}; else trayPos={dock:'float',x,y};
+    placeTray(); try{localStorage.setItem('pp-tray',JSON.stringify(trayPos))}catch(err){} };
+  grip.addEventListener('pointerup',drop); grip.addEventListener('pointercancel',drop);
+  grip.addEventListener('dblclick',()=>{ trayPos={dock:'bottom',x:0,y:0}; placeTray(); try{localStorage.setItem('pp-tray',JSON.stringify(trayPos))}catch(err){} });
+  addEventListener('resize',placeTray);
+  placeTray(); requestAnimationFrame(placeTray);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(placeTray);
+})();
 tab.addEventListener('click',()=>{tray.classList.toggle('hidden');tab.textContent=tray.classList.contains('hidden')?'Controls':'Hide'});
 if(Math.min(innerWidth,innerHeight)<560){tray.classList.add('hidden');tab.textContent='Controls'}
 addEventListener('keydown',e=>{

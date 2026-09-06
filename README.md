@@ -17,6 +17,8 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 - **Save** exports the board as a PNG (share sheet on phones).
 - Paint sets, board and desk each have a **Custom** chip with colour pickers. Choices are remembered.
 
+The control tray drags by its grip; drop it near a side to dock it as a column, near the top or bottom to lie flat. Double-click the grip to reset.
+
 Keys: `space` catch, `z` undo, `c` clear, `s` save, `f` fullscreen, `h` hide the tray.
 
 ## Code
