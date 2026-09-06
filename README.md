@@ -13,7 +13,7 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 - **Sway** hangs the board on its own strings so it swings too, like a harmonograph. **Turn** spins it.
 - **Flow** and **String** set the line weight and the period; **Air** how fast the swing dies.
 - The board's edges drag to resize it; paint only lands on the board. **Fit board** restores it.
-- **Swings** chips: hover to see one swing alone, click to remove it (with a prompt).
+- **Swings** chips: hover to see one swing alone, click to give it another palette or custom colours, or remove it (asked first).
 - **Save** exports the board as a PNG (share sheet on phones).
 - Paint sets, board and desk each have a **Custom** chip with colour pickers. Choices are remembered.
 
