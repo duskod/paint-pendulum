@@ -117,7 +117,7 @@
   <h1>Paint Pendulum</h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Drag the board's edges to resize it, its top handle to move it; paint only lands on the board</small></div>
+<div id="hint">Pull the can, let go<small>Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
@@ -150,7 +150,7 @@
       <button class="b" id="catch">Catch</button>
       <button class="b" id="undo" disabled title="Undo the last launch, removal or clear">Undo</button>
       <button class="b" id="clear">Clear</button>
-      <button class="b" id="fit" title="Board back to full table">Fit board</button>
+      <button class="b" id="fit" title="Board back to full table, view recentred">Fit board</button>
       <button class="b" id="save">Save</button>
       <button class="b" id="full">Full</button>
     </div>
@@ -209,8 +209,6 @@ function resize(){
   const m=Math.max(12,Math.min(W,H)*0.04);
   ppm=Math.min(W-2*m,H-2*m)/1.15;
   if(!Bm||!(Bm.w>0)){ Bm={x:-(W-2*m)/ppm/2,y:-(H-2*m)/ppm/2,w:(W-2*m)/ppm,h:(H-2*m)/ppm}; }
-  paint.width=Math.round(W*dpr); paint.height=Math.round(H*dpr);
-  pctx.setTransform(dpr,0,0,dpr,0,0);
   boardPx(); drawTable(); rebuild();
   sprev=[];
 }
@@ -256,9 +254,14 @@ function stepPend(o,L,damp,dt){
 /* every swing is kept as a list of dabs (x, y, radius in board metres, colour index), so any swing can be
    removed later and the board redrawn from the rest */
 let swings=[], cur=null;
+/* the paint bitmap covers just the board; `anchor` is the board-frame position (metres) of its top-left corner.
+   The board moves with its paint on it, so during a move the anchor rides along; a resize re-anchors on drop. */
+let anchor={x:0,y:0};
+const apx=()=>[W/2+anchor.x*ppm,H/2+anchor.y*ppm];
 function dab(x,y,r,k){
   if(x+r<B.x||x-r>B.x+B.w||y+r<B.y||y-r>B.y+B.h) return; // off the board: not shown, not recorded
-  pctx.fillStyle=cur.cols[k]; pctx.beginPath(); pctx.arc(x,y,r,0,TAU); pctx.fill();
+  const [ax,ay]=apx();
+  pctx.fillStyle=cur.cols[k]; pctx.beginPath(); pctx.arc(x-ax,y-ay,r,0,TAU); pctx.fill();
   cur.pts.push((x-W/2)/ppm,(y-H/2)/ppm,r/ppm,k);
 }
 function stamp(x,y,w,nx,ny,k){
@@ -268,16 +271,31 @@ function stamp(x,y,w,nx,ny,k){
     dab(x-rx*0.25*w,y-ry*0.25*w,0.5*w,0); dab(x+rx*0.35*w,y+ry*0.35*w,0.42*w,1);
   }else dab(x,y,0.55*w,k);
 }
-function drawSwing(c,sw,alpha){
+function drawSwing(c,sw,alpha,ox=0,oy=0){
   const p=sw.pts; if(!p.length) return; c.globalAlpha=alpha===undefined?1:alpha;
   let last=-1;
   for(let i=0;i<p.length;i+=4){
     const k=p[i+3]; if(k!==last){ if(last>=0) c.fill(); c.fillStyle=sw.cols[k]; c.beginPath(); last=k; }
-    const x=W/2+p[i]*ppm,y=H/2+p[i+1]*ppm,r=p[i+2]*ppm; c.moveTo(x+r,y); c.arc(x,y,r,0,TAU);
+    const x=W/2+p[i]*ppm-ox,y=H/2+p[i+1]*ppm-oy,r=p[i+2]*ppm; c.moveTo(x+r,y); c.arc(x,y,r,0,TAU);
   }
   c.fill(); c.globalAlpha=1;
 }
-function rebuild(){ pctx.clearRect(0,0,W,H); for(const sw of swings) drawSwing(pctx,sw); }
+function rebuild(){
+  boardPx(); anchor={x:Bm.x,y:Bm.y};
+  const pw=Math.max(1,Math.min(8192,Math.round(B.w*dpr))),ph=Math.max(1,Math.min(8192,Math.round(B.h*dpr)));
+  if(paint.width!==pw||paint.height!==ph){paint.width=pw;paint.height=ph} else pctx.clearRect(0,0,paint.width,paint.height);
+  pctx.setTransform(dpr,0,0,dpr,0,0);
+  const [ax,ay]=apx(); for(const sw of swings) drawSwing(pctx,sw,1,ax,ay);
+}
+/* moving the board takes its paint with it: shift every dab by the move */
+function shiftPaint(dx,dy){
+  if(!dx&&!dy) return;
+  for(const sw of swings){ const p=sw.pts; for(let i=0;i<p.length;i+=4){p[i]+=dx;p[i+1]+=dy} }
+  anchor={x:Bm.x,y:Bm.y}; sprev=[];
+}
+/* view pan: slides everything on screen (desk view, board, pivot, can) without touching the physics */
+let pan={x:0,y:0}; try{const pp=JSON.parse(localStorage.getItem('pp-pan')||'null'); if(pp&&isFinite(pp.x)&&isFinite(pp.y)) pan=pp}catch(e){}
+function savePan(){try{localStorage.setItem('pp-pan',JSON.stringify(pan))}catch(e){}}
 /* nozzle k offset (metres, pivot frame): holes in a line along a bar that turns with the string's twist */
 function nozzleOffset(k){
   const n=nozzles(); if(n===1) return [0,0];
@@ -332,11 +350,13 @@ function render(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.drawImage(table,0,0,W,H);
   boardPx();
+  ctx.save(); ctx.translate(pan.x,pan.y);   // view pan
   ctx.save(); boardTransform(ctx);
   ctx.save(); ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=28; ctx.shadowOffsetY=12; ctx.fillStyle=boardCol; rr(ctx,B.x,B.y,B.w,B.h,5); ctx.fill(); ctx.restore();
   ctx.save(); rr(ctx,B.x,B.y,B.w,B.h,5); ctx.clip();
-  if(hl&&swings.includes(hl)){ ctx.globalAlpha=0.18; ctx.drawImage(paint,0,0,W,H); ctx.globalAlpha=1; drawSwing(ctx,hl); }
-  else ctx.drawImage(paint,0,0,W,H);
+  { const [ax,ay]=apx(), pw=paint.width/dpr, ph=paint.height/dpr;
+    if(hl&&swings.includes(hl)){ ctx.globalAlpha=0.18; ctx.drawImage(paint,ax,ay,pw,ph); ctx.globalAlpha=1; drawSwing(ctx,hl); }
+    else ctx.drawImage(paint,ax,ay,pw,ph); }
   ctx.restore();
   rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke();
   // carrying handle on the top edge: drag it to move the board
@@ -371,6 +391,7 @@ function render(){
     }
   }
   drawCan(cp[0],cp[1]);
+  ctx.restore();   // end view pan
 }
 function drawCan(x,y){
   const r=Math.min(W,H)<600?14:17, a=twA;
@@ -386,7 +407,7 @@ function drawCan(x,y){
 
 /* interaction */
 let hist=[];
-function ptrPx(e){const r=view.getBoundingClientRect();const sx=e.clientX-r.left-W/2-bd.p[0]*ppm,sy=e.clientY-r.top-H/2-bd.p[1]*ppm;
+function ptrPx(e){const r=view.getBoundingClientRect();const sx=e.clientX-r.left-pan.x-W/2-bd.p[0]*ppm,sy=e.clientY-r.top-pan.y-H/2-bd.p[1]*ppm;
   const c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[W/2+sx*c-sy*s,H/2+sx*s+sy*c]}
 function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 /* board edge handles: which edge or corner is under the pointer */
@@ -403,7 +424,7 @@ const CURS={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-res
 let moveFrom=null;
 function applyResize(h,sx,sy){
   const mx=(sx-W/2)/ppm,my=(sy-H/2)/ppm,min=0.12;
-  if(h==='move'){ if(moveFrom){Bm.x=moveFrom.bx+(mx-moveFrom.mx);Bm.y=moveFrom.by+(my-moveFrom.my)} return; }
+  if(h==='move'){ if(moveFrom){Bm.x=moveFrom.bx+(mx-moveFrom.mx);Bm.y=moveFrom.by+(my-moveFrom.my);anchor={x:Bm.x,y:Bm.y}} return; }
   if(h.includes('w')){const r=Bm.x+Bm.w;Bm.x=Math.min(mx,r-min);Bm.w=r-Bm.x}
   if(h.includes('e')){Bm.w=Math.max(min,mx-Bm.x)}
   if(h.includes('n')){const b=Bm.y+Bm.h;Bm.y=Math.min(my,b-min);Bm.h=b-Bm.y}
@@ -414,8 +435,16 @@ function placeCan(q){
   const rmax=0.86*P.L,rad=Math.hypot(x,y); if(rad>rmax){x*=rmax/rad;y*=rmax/rad}
   can.p=[x,y,Math.sqrt(Math.max(0,P.L*P.L-x*x-y*y))]; can.v=[0,0,0];
 }
+let panning=null; const touches=new Map();
+view.addEventListener('contextmenu',e=>e.preventDefault());
 view.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='touch'){ touches.set(e.pointerId,[e.clientX,e.clientY]);
+    if(touches.size===2){ // second finger: pan the view instead of whatever the first finger started
+      cancelGrab(); if(resizing){ if(resizing==='move'&&moveFrom){Bm.x=moveFrom.bx;Bm.y=moveFrom.by;anchor={x:Bm.x,y:Bm.y}} resizing=null; moveFrom=null; }
+      panning={id:e.pointerId,x:e.clientX,y:e.clientY}; view.setPointerCapture(e.pointerId); return; } }
+  if(e.button===1||e.button===2){ view.setPointerCapture(e.pointerId); panning={id:e.pointerId,x:e.clientX,y:e.clientY}; e.preventDefault(); return; }
   if(e.button!==undefined&&e.button!==0) return;
+  if(panning) return;
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
@@ -427,13 +456,18 @@ view.addEventListener('pointerdown',e=>{
   $('#hint').classList.add('gone');
 });
 view.addEventListener('pointermove',e=>{
+  if(panning){ if(panning.id===e.pointerId){ pan.x+=e.clientX-panning.x; pan.y+=e.clientY-panning.y; panning.x=e.clientX; panning.y=e.clientY; } return; }
   if(resizing){ const [sx,sy]=ptrPx(e); applyResize(resizing,sx,sy); return; }
   if(!grabbed){ const [sx,sy]=ptrPx(e); hover=edgeAt(sx,sy,12); view.style.cursor=hover?CURS[hover]:''; return; }
   const q=ptr(e); placeCan(q); const t=performance.now(); hist.push({q,t}); while(hist.length>1&&t-hist[0].t>140) hist.shift();
 });
 function cancelGrab(){ if(!grabbed) return; grabbed=false; view.classList.remove('grabbing'); can.p=[0,0,P.L]; can.v=[0,0,0]; hist=[]; }
 function release(e){
-  if(resizing){ resizing=null; moveFrom=null; view.style.cursor=''; saveBoard(); return; }
+  if(e&&e.pointerType==='touch') touches.delete(e.pointerId);
+  if(resizing){
+    if(resizing==='move'&&moveFrom) shiftPaint(Bm.x-moveFrom.bx,Bm.y-moveFrom.by); else rebuild();
+    resizing=null; moveFrom=null; view.style.cursor=''; saveBoard(); return; }
+  if(panning&&panning.id===e.pointerId){ panning=null; savePan(); return; }
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing');
   const t=performance.now(); let a=hist[0]; for(const h of hist){ if(t-h.t>=60) a=h; }
   const b=hist[hist.length-1]; const dt=Math.max(0.016,(b.t-a.t)/1000);
@@ -510,9 +544,8 @@ function listSwings(keepEditor){ requestAnimationFrame(placeTray);
   });
 }
 async function save(){
-  boardPx(); const c=document.createElement('canvas'); c.width=Math.round(B.w*dpr); c.height=Math.round(B.h*dpr);
-  const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height);
-  x.drawImage(paint,Math.round(B.x*dpr),Math.round(B.y*dpr),c.width,c.height,0,0,c.width,c.height);
+  rebuild(); const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
+  const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height); x.drawImage(paint,0,0);
   const blob=await new Promise(r=>c.toBlob(r,'image/png'));
   const name='paint-pendulum-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png';
   // inside the claude.ai viewer the page cannot download by itself; the viewer's download capability saves it
@@ -572,7 +605,7 @@ for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed
 $('#catch').addEventListener('click',catchCan);
 $('#clear').addEventListener('click',clearBoard);
 $('#undo').addEventListener('click',undoLast);
-$('#fit').addEventListener('click',()=>{Bm=null;saveBoard();resize()});
+$('#fit').addEventListener('click',()=>{Bm=null;pan={x:0,y:0};savePan();saveBoard();resize()});
 $('#save').addEventListener('click',save);
 $('#full').addEventListener('click',fullscreen);
 const tray=$('#tray'),tab=$('#tab');
@@ -612,6 +645,8 @@ if(Math.min(innerWidth,innerHeight)<560){tray.classList.add('hidden');tab.textCo
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
   if(e.key==='Escape'){if(armed>=0)disarm();cancelGrab();return}
+  if(e.key.startsWith('Arrow')){ const d=e.shiftKey?120:40; if(e.key==='ArrowLeft')pan.x-=d; else if(e.key==='ArrowRight')pan.x+=d; else if(e.key==='ArrowUp')pan.y-=d; else pan.y+=d; savePan(); e.preventDefault(); return; }
+  if(e.key==='0'){ pan={x:0,y:0}; savePan(); return; }
   if(e.key===' '){e.preventDefault();catchCan()} else if(e.key==='c') clearBoard(); else if(e.key==='z'||e.key==='u') undoLast(); else if(e.key==='s') save(); else if(e.key==='f') fullscreen(); else if(e.key==='h') tab.click();
 });
 view.addEventListener('dblclick',fullscreen);
@@ -620,7 +655,7 @@ view.addEventListener('dblclick',fullscreen);
 let last=performance.now(),acc=0,uiT=0;
 function frame(now){
   const el=Math.min(0.05,(now-last)/1000); last=now; acc+=el;
-  boardPx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x,B.y,B.w,B.h); pctx.clip();
+  boardPx(); { const [ax,ay]=apx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x-ax,B.y-ay,B.w,B.h); pctx.clip(); }
   let n=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
   render();
