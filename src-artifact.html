@@ -1,0 +1,521 @@
+<title>Paint Pendulum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ink:#f1ece2; --muted:#b5a892; --tray:#181410; --tray-edge:#3b3127; --accent:#22e5dc;
+    --display:"Syne","Avenir Next",system-ui,sans-serif;
+    --body:"Instrument Sans","Helvetica Neue",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:#6d4c2e;color:var(--ink);font-family:var(--body);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #view.grabbing{cursor:grabbing}
+  .hud{position:fixed;top:14px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+  h1{margin:0;font:800 14px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+  .readout{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .readout b{font-weight:500;color:var(--ink)}
+  #hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);font:700 clamp(18px,3.4vw,26px) var(--display);color:rgba(241,236,226,.9);pointer-events:none;transition:opacity .7s;text-align:center;text-shadow:0 2px 14px #000;letter-spacing:.02em}
+  #hint small{display:block;font:500 13px var(--body);color:var(--muted);margin-top:8px;letter-spacing:.04em}
+  #hint.gone{opacity:0}
+  #tray{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(1040px,calc(100vw - 20px));background:rgba(24,20,16,.94);border:1px solid var(--tray-edge);border-radius:14px;padding:12px 16px 10px;display:flex;flex-direction:column;gap:10px;box-shadow:0 14px 44px rgba(0,0,0,.55);backdrop-filter:blur(8px);transition:transform .35s cubic-bezier(.2,.7,.2,1),opacity .3s}
+  #tray.hidden{transform:translate(-50%,calc(100% + 40px));opacity:0;pointer-events:none}
+  .row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+  .group{display:flex;align-items:center;gap:8px}
+  .lbl{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .chips{display:flex;gap:6px}
+  .chip{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.12);cursor:pointer;padding:0;background:#000;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+  .chip.on{border-color:var(--ink);box-shadow:0 0 0 2px rgba(0,0,0,.6)}
+  .chip.custom-chip{position:relative;background:conic-gradient(#ef476f,#ffd166,#06d6a0,#118ab2,#b46bff,#ef476f)}
+  .chip.custom-chip::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--tray)}
+  .chip.custom-chip::before{content:"+";position:absolute;inset:0;display:grid;place-items:center;font:700 14px/1 var(--mono);color:var(--ink);z-index:1}
+  button.b.sm{padding:4px 9px;font-size:11px}
+  .chip.swing{font:700 11px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;border-color:rgba(255,255,255,.25)}
+  .chip.swing:hover,.chip.swing.armed{border-color:#ff5c5c}
+  .chip.swing.armed{box-shadow:0 0 0 2px #ff5c5c}
+  #confirm{display:inline-flex;align-items:center;gap:8px;font:600 12px var(--body);color:var(--ink)}
+  button.b.danger{background:#7a1f1f;border-color:#a33}
+  .chip:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .custom{display:flex;gap:4px;align-items:center}
+  .custom input{width:24px;height:24px;border:none;padding:0;background:none;cursor:pointer;border-radius:50%}
+  .custom input::-webkit-color-swatch{border-radius:50%;border:2px solid rgba(255,255,255,.2)}
+  .custom input::-webkit-color-swatch-wrapper{padding:0}
+  .tog{display:flex;align-items:center;gap:6px;font:500 12.5px var(--body);color:var(--ink);cursor:pointer}
+  .tog input{accent-color:var(--accent)}
+  .sl{display:flex;align-items:center;gap:8px;font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .sl input{width:92px;accent-color:var(--accent)}
+  .sl select{font:600 12px var(--body);color:var(--ink);background:#2a231c;border:1px solid #4a3d31;border-radius:8px;padding:5px 8px;text-transform:none;letter-spacing:0}
+  .sl output{min-width:4.2ch;color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+  .btns{display:flex;gap:6px;margin-left:auto}
+  button.b{font:600 12px var(--body);letter-spacing:.04em;color:var(--ink);background:#2a231c;border:1px solid #4a3d31;border-radius:8px;padding:7px 12px;cursor:pointer}
+  button.b:hover{background:#372e25}
+  button.b.primary{background:var(--accent);color:#08201f;border-color:transparent}
+  #tab{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.9);border:1px solid var(--tray-edge);border-radius:999px;padding:8px 13px;cursor:pointer;z-index:2}
+  #toast{position:fixed;left:50%;top:48px;transform:translateX(-50%);font:600 12px var(--body);background:rgba(24,20,16,.92);color:var(--ink);border:1px solid var(--tray-edge);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
+  #toast.show{opacity:1}
+  @media (max-width:720px){
+    #tray{padding:10px 12px}
+    .row{gap:8px 14px}
+    .sl input{width:74px}
+    .btns{margin-left:0;width:100%;justify-content:flex-end}
+  }
+  @media (prefers-reduced-motion:reduce){#tray,#hint{transition:none}}
+</style>
+
+<canvas id="view" aria-label="Pendulum painting board"></canvas>
+<header class="hud">
+  <h1>Paint Pendulum</h1>
+  <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
+</header>
+<div id="hint">Pull the can, let go<small>Drag the board's edges to resize it; paint only lands on the board</small></div>
+
+<aside id="tray" aria-label="Controls">
+  <div class="row">
+    <div class="group"><span class="lbl">Paint</span><div class="chips" id="pairs"></div>
+      <span class="custom" id="custom" hidden><span id="customInputs" style="display:contents"></span><button class="b sm" id="roll" title="Roll a fresh set of six">Roll</button></span>
+    </div>
+    <div class="group"><span class="lbl">Board</span><div class="chips" id="boards"></div>
+      <span class="custom" id="customBoard" hidden><input type="color" id="boardPick" aria-label="Board colour"></span>
+    </div>
+    <div class="group"><span class="lbl">Desk</span><div class="chips" id="tables"></div>
+      <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span>
+    </div>
+    <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option></select></label>
+    <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
+  </div>
+  <div class="row" id="swingRow" hidden><span class="lbl">Swings</span><div class="chips" id="swingChips"></div><span class="lbl" id="swingHint" style="letter-spacing:.04em;text-transform:none">hover to see one, click to remove it</span>
+    <span id="confirm" hidden><span id="confirmText"></span><button class="b sm danger" id="confirmYes">Remove</button><button class="b sm" id="confirmNo">Keep</button></span></div>
+  <div class="row">
+    <label class="sl">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
+    <label class="sl">String <input type="range" id="L" min="0.6" max="3" step="0.05" value="1.6"><output>1.60</output></label>
+    <label class="sl">Air <input type="range" id="damp" min="0.01" max="0.35" step="0.01" value="0.06"><output>0.06</output></label>
+    <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
+    <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="-3" max="3" step="0.1" value="0"><output>0</output></label>
+    <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
+    <label class="sl">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
+    <div class="btns">
+      <button class="b" id="catch">Catch</button>
+      <button class="b" id="undo" disabled title="Undo the last launch, removal or clear">Undo</button>
+      <button class="b" id="clear">Clear</button>
+      <button class="b" id="fit" title="Board back to full table">Fit board</button>
+      <button class="b" id="save">Save</button>
+      <button class="b" id="full">Full</button>
+    </div>
+  </div>
+</aside>
+<button id="tab" aria-controls="tray">Hide</button>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+const G=9.81, V0=2.5e-4, FILM=3.2e-4, DT=1/240, TAU=Math.PI*2;
+const $=s=>document.querySelector(s);
+const view=$('#view'), ctx=view.getContext('2d');
+const paint=document.createElement('canvas'), pctx=paint.getContext('2d');
+const table=document.createElement('canvas'), tctx=table.getContext('2d');
+let W=0,H=0,dpr=1,ppm=500;
+/* the board: a rectangle on the table, in metres from the pivot's rest point. Paint lands only inside it. */
+let Bm=null; try{Bm=JSON.parse(localStorage.getItem('pp-board'))}catch(e){}
+let B={x:0,y:0,w:10,h:10}; // screen px, derived from Bm each frame
+function boardPx(){B={x:W/2+Bm.x*ppm,y:H/2+Bm.y*ppm,w:Bm.w*ppm,h:Bm.h*ppm};return B}
+function saveBoard(){try{localStorage.setItem('pp-board',JSON.stringify(Bm))}catch(e){}}
+
+const PAIRS=[
+  ['Lagoon','#22e5dc','#ff8c2a','#ffd166','#ef476f','#06d6a0','#f8f4e3'],
+  ['Gilt','#e8b53f','#f5edd8','#c47a2c','#fff3c4','#7a5a1e','#a37b3a'],
+  ['Neon','#ff2fa6','#b8ff2e','#2ee6ff','#ffe600','#ff5e1f','#b46bff'],
+  ['Studio','#d8203c','#f6f3ee','#2b6cb0','#f2c14e','#3a9d5d','#1d1d1f'],
+  ['Ink','#182340','#e34a2c','#6b7b8c','#d9c7a0','#a3372a','#2f4b6e'],
+  ['Cobalt','#2a4fd6','#d4dbe3','#7fb2ff','#1b2a6b','#a9c8ff','#3d6fe0'],
+  ['Sorbet','#7ff0c0','#ff6b6b','#ffd6a5','#a0c4ff','#caffbf','#ffadad']];
+const CUSTOM=['Custom','#c8102e','#f2a900','#0b6e4f','#1f4e9c','#7b2d8e','#2bb5b0'];
+const BOARDS=[['Black','#0c0c0e'],['Ivory','#ede4d0'],['Kraft','#bf9868'],['Slate','#39414a'],['Custom','#1a2a3a']];
+const isHex=c=>/^#[0-9a-f]{6}$/i.test(c);
+try{const sv=JSON.parse(localStorage.getItem('pp-custom')||'null'); if(Array.isArray(sv)&&sv.length===6&&sv.every(isHex)) CUSTOM.splice(1,6,...sv);
+    const bc=localStorage.getItem('pp-boardcol'); if(isHex(bc)) BOARDS[4][1]=bc;}catch(e){}
+PAIRS.push(CUSTOM);
+/* the desk: [name, top colour, bottom colour, finish] — wood gets grain, stone gets speckle, custom is flat */
+const TABLES=[['Oak','#8b6541','#66452a','wood'],['Walnut','#4b2f1f','#2c1a10','wood'],['Ash','#d9c3a2','#b6976f','wood'],['Concrete','#7f8183','#5c5e60','stone'],['Slate','#2e3236','#1c1f22','stone'],['Custom','#3b4a5a','#3b4a5a','flat']];
+let tableSel=0; try{const t=JSON.parse(localStorage.getItem('pp-table')||'null'); if(t&&Number.isInteger(t.i)&&TABLES[t.i]){tableSel=t.i; if(isHex(t.c)){TABLES[5][1]=TABLES[5][2]=t.c}}}catch(e){}
+function remember(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+const P={L:1.6,damp:0.06,flow:2,h:0.08,swing:0,L2:1.05,damp2:0.18,rpm:0,twist:0.15,mode:'ribbon',gap:0.02,auto:true};
+let cols=PAIRS[0].slice(1), boardCol=BOARDS[0][1];
+const nozzles=()=>P.mode==='ribbon'||P.mode==='solid'?1:+P.mode;
+const can={p:[0,0,P.L],v:[0,0,0]}, bd={p:[0,0,P.L2],v:[0,0,0],ang:0};
+let flowing=false, running=false, grabbed=false, level=1, T=0, angAcc=0, lastAng=null, qprev=null, sprev=[], nprev=[1,0], stillFor=0, wcur=-1, twA=0;
+/* the can's rotation (ribbon split / nozzle bar): idles slowly at rest so you can pick an angle, holds while
+   you stretch it, and turns at the Twist rate during the swing */
+function turnCan(dt){ if(grabbed) return; twA+=(running?P.twist:Math.max(P.twist,0.06))*TAU*dt; }
+
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+function resize(){
+  const oW=W,oH=H,oppm=ppm;
+  W=innerWidth; H=innerHeight; dpr=Math.min(devicePixelRatio||1,2);
+  view.width=Math.round(W*dpr); view.height=Math.round(H*dpr);
+  const m=Math.max(12,Math.min(W,H)*0.04);
+  ppm=Math.min(W-2*m,H-2*m)/1.15;
+  if(!Bm||!(Bm.w>0)){ Bm={x:-(W-2*m)/ppm/2,y:-(H-2*m)/ppm/2,w:(W-2*m)/ppm,h:(H-2*m)/ppm}; }
+  paint.width=Math.round(W*dpr); paint.height=Math.round(H*dpr);
+  pctx.setTransform(dpr,0,0,dpr,0,0);
+  boardPx(); drawTable(); rebuild();
+  sprev=[];
+}
+function drawTable(){
+  table.width=view.width; table.height=view.height; tctx.setTransform(dpr,0,0,dpr,0,0);
+  const [,top,bot,finish]=TABLES[tableSel];
+  const g=tctx.createLinearGradient(0,0,0,H); g.addColorStop(0,top); g.addColorStop(1,bot);
+  tctx.fillStyle=g; tctx.fillRect(0,0,W,H);
+  const rnd=mulberry(11), plank=Math.max(90,Math.min(W,H)/6);
+  if(finish==='stone'){ for(let i=0;i<W*H/60;i++){ tctx.fillStyle=`rgba(${rnd()<.5?'0,0,0':'255,255,255'},${(rnd()*0.08).toFixed(3)})`; tctx.fillRect(rnd()*W,rnd()*H,1+rnd()*2,1+rnd()*2) } }
+  if(finish==='wood') for(let x=-plank*0.4;x<W;x+=plank){
+    tctx.fillStyle=`rgba(${rnd()<.5?'0,0,0':'255,220,170'},${(rnd()*0.09).toFixed(3)})`; tctx.fillRect(x,0,plank,H);
+    tctx.fillStyle='rgba(20,8,0,.45)'; tctx.fillRect(x,0,1.5,H);
+    tctx.fillStyle='rgba(255,225,180,.12)'; tctx.fillRect(x+1.5,0,1,H);
+    for(let i=0;i<20;i++){
+      const gx=x+4+rnd()*(plank-8), amp=4+rnd()*14, k=90+rnd()*120;
+      tctx.strokeStyle=`rgba(${rnd()<.65?'45,24,8':'235,205,160'},${(0.05+rnd()*0.13).toFixed(3)})`;
+      tctx.lineWidth=0.5+rnd()*1.6; tctx.beginPath(); tctx.moveTo(gx,0);
+      for(let y=0;y<=H+40;y+=36) tctx.lineTo(gx+Math.sin(y/k+i)*amp*0.35+Math.sin(y/420+i)*amp,y);
+      tctx.stroke();
+    }
+  }
+  const v=tctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.75);
+  v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(0,0,0,.5)'); tctx.fillStyle=v; tctx.fillRect(0,0,W,H);
+}
+
+/* frames: pivot frame (x,y horizontal metres, z down) -> board frame (board translated by bd.p, rotated by bd.ang) */
+function toBoard(x,y){const dx=x-bd.p[0],dy=y-bd.p[1],c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[dx*c-dy*s,dx*s+dy*c]}
+function rotToPivot(qx,qy){const c=Math.cos(bd.ang),s=Math.sin(bd.ang);return[qx*c-qy*s,qx*s+qy*c]}
+function fromBoard(qx,qy){const r=rotToPivot(qx,qy);return[r[0]+bd.p[0],r[1]+bd.p[1]]}
+function bpx(q){return[W/2+q[0]*ppm,H/2+q[1]*ppm]}                     // board-frame metres -> paint-canvas px
+function scr(q){const c=Math.cos(bd.ang),s=Math.sin(bd.ang);            // board-frame metres -> screen px
+  return[W/2+(q[0]*c-q[1]*s+bd.p[0])*ppm,H/2+(q[0]*s+q[1]*c+bd.p[1])*ppm]}
+function boardTransform(c){c.translate(W/2+bd.p[0]*ppm,H/2+bd.p[1]*ppm);c.rotate(bd.ang);c.translate(-W/2,-H/2)}
+
+function stepPend(o,L,damp,dt){
+  const p=o.p,v=o.v;
+  const ax=-damp*v[0],ay=-damp*v[1],az=G-damp*v[2];
+  let nx=p[0]+v[0]*dt+ax*dt*dt,ny=p[1]+v[1]*dt+ay*dt*dt,nz=p[2]+v[2]*dt+az*dt*dt;
+  const k=L/Math.hypot(nx,ny,nz); nx*=k;ny*=k;nz*=k;
+  v[0]=(nx-p[0])/dt;v[1]=(ny-p[1])/dt;v[2]=(nz-p[2])/dt;p[0]=nx;p[1]=ny;p[2]=nz;
+}
+/* every swing is kept as a list of dabs (x, y, radius in board metres, colour index), so any swing can be
+   removed later and the board redrawn from the rest */
+let swings=[], cur=null;
+function dab(x,y,r,k){
+  if(x+r<B.x||x-r>B.x+B.w||y+r<B.y||y-r>B.y+B.h) return; // off the board: not shown, not recorded
+  pctx.fillStyle=cur.cols[k]; pctx.beginPath(); pctx.arc(x,y,r,0,TAU); pctx.fill();
+  cur.pts.push((x-W/2)/ppm,(y-H/2)/ppm,r/ppm,k);
+}
+function stamp(x,y,w,nx,ny,k){
+  if(!cur) return;
+  if(P.mode==='ribbon'){
+    const a=twA,c=Math.cos(a),s=Math.sin(a),rx=nx*c-ny*s,ry=nx*s+ny*c;
+    dab(x-rx*0.25*w,y-ry*0.25*w,0.5*w,0); dab(x+rx*0.35*w,y+ry*0.35*w,0.42*w,1);
+  }else dab(x,y,0.55*w,k);
+}
+function drawSwing(c,sw,alpha){
+  const p=sw.pts; if(!p.length) return; c.globalAlpha=alpha===undefined?1:alpha;
+  let last=-1;
+  for(let i=0;i<p.length;i+=4){
+    const k=p[i+3]; if(k!==last){ if(last>=0) c.fill(); c.fillStyle=sw.cols[k]; c.beginPath(); last=k; }
+    const x=W/2+p[i]*ppm,y=H/2+p[i+1]*ppm,r=p[i+2]*ppm; c.moveTo(x+r,y); c.arc(x,y,r,0,TAU);
+  }
+  c.fill(); c.globalAlpha=1;
+}
+function rebuild(){ pctx.clearRect(0,0,W,H); for(const sw of swings) drawSwing(pctx,sw); }
+/* nozzle k offset (metres, pivot frame): holes in a line along a bar that turns with the string's twist */
+function nozzleOffset(k){
+  const n=nozzles(); if(n===1) return [0,0];
+  const a=twA,d=(k-(n-1)/2)*P.gap; return [Math.cos(a)*d,Math.sin(a)*d];
+}
+function stampRun(k,px,py,w){
+  const s=sprev[k];
+  if(s){
+    const d=Math.hypot(px-s[0],py-s[1]),n=Math.max(1,Math.ceil(d/Math.max(0.6,0.3*w)));
+    for(let i=1;i<=n;i++) stamp(s[0]+(px-s[0])*i/n,s[1]+(py-s[1])*i/n,w,nprev[0],nprev[1],k);
+  } else stamp(px,py,w,nprev[0],nprev[1],k);
+  sprev[k]=[px,py];
+}
+function step(dt){
+  turnCan(dt);
+  if(grabbed) return;
+  if(running){ stepPend(can,P.L,P.damp,dt); if(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4) stepPend(bd,P.L2,P.damp2,dt); }
+  bd.ang+=P.rpm*TAU/60*dt;
+  if(!running) return;
+  T+=dt;
+  const tf=Math.sqrt(2*P.h/G);
+  const q=toBoard(can.p[0]+can.v[0]*tf,can.p[1]+can.v[1]*tf);
+  if(qprev){
+    const vx=(q[0]-qprev[0])/dt,vy=(q[1]-qprev[1])/dt,sp=Math.hypot(vx,vy);
+    if(sp>0.02) nprev=[-vy/sp,vx/sp];
+    if(flowing){
+      const qf=P.flow*1e-6*(0.3+0.7*level);
+      level=Math.max(0,level-qf*dt/V0);
+      // line width = paint per metre of travel; a slowing can pools, but paint spreads at a finite rate, so
+      // the width chases its target instead of jumping to a disc at each turning point
+      const wt=Math.min(0.028,Math.max(0.0012,qf/FILM/Math.max(sp,0.08)));
+      if(wcur<0) wcur=wt; const rate=0.05*dt; wcur+=Math.max(-rate*2,Math.min(rate,wt-wcur));
+      const w=wcur*ppm, n=nozzles();
+      if(n===1){ const [px,py]=bpx(q); stampRun(0,px,py,w); }
+      else for(let k=0;k<n;k++){
+        const o=nozzleOffset(k), qk=toBoard(can.p[0]+can.v[0]*tf+o[0],can.p[1]+can.v[1]*tf+o[1]);
+        const [px,py]=bpx(qk); stampRun(k,px,py,w);
+      }
+      if(level<=0) flowing=false;
+    }
+  }
+  qprev=q;
+  const ang=Math.atan2(can.p[1],can.p[0]);
+  if(lastAng!==null){let da=ang-lastAng;if(da>Math.PI)da-=TAU;else if(da<-Math.PI)da+=TAU;angAcc+=da}
+  lastAng=ang;
+  const amp=Math.hypot(can.p[0],can.p[1]),spd=Math.hypot(can.v[0],can.v[1]);
+  if(amp<0.012&&spd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false}}else stillFor=0;
+}
+
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function render(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.drawImage(table,0,0,W,H);
+  boardPx();
+  ctx.save(); boardTransform(ctx);
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=28; ctx.shadowOffsetY=12; ctx.fillStyle=boardCol; rr(ctx,B.x,B.y,B.w,B.h,5); ctx.fill(); ctx.restore();
+  ctx.save(); rr(ctx,B.x,B.y,B.w,B.h,5); ctx.clip();
+  if(hl&&swings.includes(hl)){ ctx.globalAlpha=0.18; ctx.drawImage(paint,0,0,W,H); ctx.globalAlpha=1; drawSwing(ctx,hl); }
+  else ctx.drawImage(paint,0,0,W,H);
+  ctx.restore();
+  rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke();
+  // corner ticks so the edges read as handles
+  ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=2; const L=12;
+  for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
+    ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke();
+  }
+  if(resizing){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
+    ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-8>20?B.y-8:B.y+B.h+18); }
+  ctx.restore();
+
+  const tf=Math.sqrt(2*P.h/G);
+  const pv=scr(toBoard(0,0)), cp=scr(toBoard(can.p[0],can.p[1]));
+  const lp=scr(toBoard(can.p[0]+can.v[0]*tf,can.p[1]+can.v[1]*tf));
+  ctx.lineCap='round';
+  ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pv[0],pv[1]); ctx.lineTo(cp[0],cp[1]); ctx.stroke();
+  ctx.fillStyle='#e6cb94'; ctx.beginPath(); ctx.arc(pv[0],pv[1],3.5,0,TAU); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cp[0]+6,cp[1]+9,19,15,0,0,TAU); ctx.fill();
+  const n=nozzles();
+  if(n===1){ if(flowing){ ctx.strokeStyle=cols[0]; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(cp[0],cp[1]); ctx.lineTo(lp[0],lp[1]); ctx.stroke(); } }
+  else{
+    const e0=nozzleOffset(0),e1=nozzleOffset(n-1),b0=scr(toBoard(can.p[0]+e0[0],can.p[1]+e0[1])),b1=scr(toBoard(can.p[0]+e1[0],can.p[1]+e1[1]));
+    ctx.strokeStyle='#c9c2b6'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(b0[0],b0[1]); ctx.lineTo(b1[0],b1[1]); ctx.stroke();
+    for(let k=0;k<n;k++){
+      const o=nozzleOffset(k), hp=scr(toBoard(can.p[0]+o[0],can.p[1]+o[1])), dp=scr(toBoard(can.p[0]+can.v[0]*tf+o[0],can.p[1]+can.v[1]*tf+o[1]));
+      if(flowing){ ctx.strokeStyle=cols[k]; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(hp[0],hp[1]); ctx.lineTo(dp[0],dp[1]); ctx.stroke(); }
+      ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.arc(hp[0],hp[1],3.2,0,TAU); ctx.fill();
+    }
+  }
+  drawCan(cp[0],cp[1]);
+}
+function drawCan(x,y){
+  const r=Math.min(W,H)<600?14:17, a=twA;
+  ctx.save(); ctx.translate(x,y);
+  ctx.fillStyle='#1c1917'; ctx.beginPath(); ctx.arc(0,0,r+3,0,TAU); ctx.fill();
+  const segs=P.mode==='solid'?1:P.mode==='ribbon'?2:nozzles();
+  for(let k=0;k<segs;k++){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r,a+k*TAU/segs,a+(k+1)*TAU/segs); ctx.closePath(); ctx.fill(); }
+  ctx.lineWidth=3; ctx.strokeStyle='#c9c2b6'; ctx.beginPath(); ctx.arc(0,0,r+1.5,0,TAU); ctx.stroke();
+  ctx.lineWidth=1; ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(0,0,r+3,-2.4,-0.9); ctx.stroke();
+  ctx.fillStyle='rgba(0,0,0,.45)'; ctx.beginPath(); ctx.arc(0,0,r*0.22,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* interaction */
+let hist=[];
+function ptrPx(e){const r=view.getBoundingClientRect();const sx=e.clientX-r.left-W/2-bd.p[0]*ppm,sy=e.clientY-r.top-H/2-bd.p[1]*ppm;
+  const c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[W/2+sx*c-sy*s,H/2+sx*s+sy*c]}
+function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
+/* board edge handles: which edge or corner is under the pointer */
+let resizing=null, hover=null;
+function edgeAt(sx,sy,tol){
+  boardPx(); const nx=Math.abs(sx-B.x)<tol, px=Math.abs(sx-(B.x+B.w))<tol, ny=Math.abs(sy-B.y)<tol, py=Math.abs(sy-(B.y+B.h))<tol;
+  const inX=sx>B.x-tol&&sx<B.x+B.w+tol, inY=sy>B.y-tol&&sy<B.y+B.h+tol;
+  if(!inX||!inY) return null;
+  const h=(ny?'n':py?'s':'')+(nx?'w':px?'e':''); return h||null;
+}
+const CURS={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-resize',sw:'nesw-resize',nw:'nwse-resize',se:'nwse-resize'};
+function applyResize(h,sx,sy){
+  const mx=(sx-W/2)/ppm,my=(sy-H/2)/ppm,min=0.12;
+  if(h.includes('w')){const r=Bm.x+Bm.w;Bm.x=Math.min(mx,r-min);Bm.w=r-Bm.x}
+  if(h.includes('e')){Bm.w=Math.max(min,mx-Bm.x)}
+  if(h.includes('n')){const b=Bm.y+Bm.h;Bm.y=Math.min(my,b-min);Bm.h=b-Bm.y}
+  if(h.includes('s')){Bm.h=Math.max(min,my-Bm.y)}
+}
+function placeCan(q){
+  let [x,y]=fromBoard(q[0],q[1]);
+  const rmax=0.86*P.L,rad=Math.hypot(x,y); if(rad>rmax){x*=rmax/rad;y*=rmax/rad}
+  can.p=[x,y,Math.sqrt(Math.max(0,P.L*P.L-x*x-y*y))]; can.v=[0,0,0];
+}
+view.addEventListener('pointerdown',e=>{
+  if(e.button!==undefined&&e.button!==0) return;
+  view.setPointerCapture(e.pointerId);
+  const [sx,sy]=ptrPx(e), h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
+  if(h){ resizing=h; view.style.cursor=CURS[h]; return; }
+  view.classList.add('grabbing');
+  grabbed=true; running=false; flowing=false; stillFor=0;
+  bd.p=[0,0,P.L2]; bd.v=[0,0,0];
+  const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
+  $('#hint').classList.add('gone');
+});
+view.addEventListener('pointermove',e=>{
+  if(resizing){ const [sx,sy]=ptrPx(e); applyResize(resizing,sx,sy); return; }
+  if(!grabbed){ const [sx,sy]=ptrPx(e); hover=edgeAt(sx,sy,12); view.style.cursor=hover?CURS[hover]:''; return; }
+  const q=ptr(e); placeCan(q); const t=performance.now(); hist.push({q,t}); while(hist.length>1&&t-hist[0].t>140) hist.shift();
+});
+function cancelGrab(){ if(!grabbed) return; grabbed=false; view.classList.remove('grabbing'); can.p=[0,0,P.L]; can.v=[0,0,0]; hist=[]; }
+function release(e){
+  if(resizing){ resizing=null; view.style.cursor=''; saveBoard(); return; }
+  if(!grabbed) return; grabbed=false; view.classList.remove('grabbing');
+  const t=performance.now(); let a=hist[0]; for(const h of hist){ if(t-h.t>=60) a=h; }
+  const b=hist[hist.length-1]; const dt=Math.max(0.016,(b.t-a.t)/1000);
+  let vq=[(b.q[0]-a.q[0])/dt,(b.q[1]-a.q[1])/dt]; const sp=Math.hypot(vq[0],vq[1]); if(sp>2.4){vq[0]*=2.4/sp;vq[1]*=2.4/sp}
+  const vp=rotToPivot(vq[0],vq[1]); const p=can.p;
+  const vz=p[2]>1e-3?-(vp[0]*p[0]+vp[1]*p[1])/p[2]:0;
+  can.v=[vp[0],vp[1],vz];
+  if(P.swing>0){const th=Math.random()*TAU,s=P.swing*0.5;bd.v=[Math.cos(th)*s,Math.sin(th)*s,0]}
+  remember_state();
+  cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
+  running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
+}
+view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
+
+function catchCan(){grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
+function clearBoard(){ if(!swings.length) return; remember_state(); stopCan(); swings=[]; cur=null; rebuild(); listSwings(); angAcc=0; T=0; }
+/* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
+const history=[];
+function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=false; }
+function stopCan(){ grabbed=false; running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; bd.p=[0,0,P.L2]; bd.v=[0,0,0]; sprev=[]; qprev=null; }
+function undoLast(){
+  const prev=history.pop(); if(!prev) return;
+  stopCan(); swings=prev; cur=null; rebuild(); listSwings();
+  $('#undo').disabled=history.length===0;
+}
+/* removal asks first: the chip arms, its swing stays highlighted, and Remove / Keep / Esc decide */
+let armed=-1;
+function askRemove(i){
+  armed=i; hl=swings[i];
+  [...$('#swingChips').children].forEach((c,j)=>c.classList.toggle('armed',j===i));
+  $('#confirmText').textContent='Remove swing '+(i+1)+'?'; $('#confirm').hidden=false; $('#swingHint').hidden=true;
+  $('#confirmYes').focus();
+}
+function disarm(){ armed=-1; hl=null; $('#confirm').hidden=true; $('#swingHint').hidden=false; [...$('#swingChips').children].forEach(c=>c.classList.remove('armed')); }
+$('#confirmYes').addEventListener('click',()=>{const i=armed; disarm(); removeSwing(i)});
+$('#confirmNo').addEventListener('click',disarm);
+function removeSwing(i){
+  if(i<0||i>=swings.length) return;
+  remember_state(); if(swings[i]===cur) stopCan(); swings.splice(i,1); cur=null; rebuild(); listSwings();
+}
+/* one chip per swing in the tray: hover to see it on its own, click to remove it */
+let hl=null;
+function listSwings(){
+  const host=$('#swingChips'); host.innerHTML=''; $('#swingRow').hidden=!swings.length; if(armed>=0) disarm();
+  swings.forEach((sw,i)=>{
+    const b=document.createElement('button'); b.className='chip swing'; b.title='Remove swing '+(i+1); b.setAttribute('aria-label',b.title);
+    const n=sw.mode==='solid'?1:sw.mode==='ribbon'?2:+sw.mode, c=sw.cols.slice(0,n);
+    b.style.background=n===1?c[0]:`conic-gradient(${c.map((x,j)=>`${x} ${j/n*360}deg ${(j+1)/n*360}deg`).join(',')})`;
+    b.textContent=i+1;
+    b.addEventListener('mouseenter',()=>{if(armed<0)hl=sw}); b.addEventListener('mouseleave',()=>{if(armed<0&&hl===sw)hl=null});
+    b.addEventListener('click',()=>askRemove(i));
+    host.appendChild(b);
+  });
+}
+async function save(){
+  boardPx(); const c=document.createElement('canvas'); c.width=Math.round(B.w*dpr); c.height=Math.round(B.h*dpr);
+  const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height);
+  x.drawImage(paint,Math.round(B.x*dpr),Math.round(B.y*dpr),c.width,c.height,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  const name='paint-pendulum-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png';
+  // inside the claude.ai viewer the page cannot download by itself; the viewer's download capability saves it
+  const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
+  if(dl){ try{ await dl.save({filename:name,data:blob}); toast('Saved'); }catch(err){ if(err&&err.code!=='declined') toast('Could not save: '+(err.message||err.code||'unknown')); } return; }
+  const file=new File([blob],name,{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Paint Pendulum'});return}catch(e){}}
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),2400)}
+function fullscreen(){const d=document;if(d.fullscreenElement){d.exitFullscreen()}else if(d.documentElement.requestFullscreen){d.documentElement.requestFullscreen().catch(()=>{})}}
+
+/* tray */
+function chips(host,list,getSel,onPick,paintChip){
+  host.innerHTML='';
+  list.forEach((it,i)=>{const b=document.createElement('button');b.className='chip'+(it[0]==='Custom'?' custom-chip':'');b.title=it[0];b.setAttribute('aria-label',it[0]);if(it[0]!=='Custom')paintChip(b,it);
+    b.addEventListener('click',()=>{onPick(it,i);[...host.children].forEach((c,j)=>c.classList.toggle('on',j===i))});host.appendChild(b)});
+  [...host.children].forEach((c,j)=>c.classList.toggle('on',j===getSel()));
+}
+let pairSel=0,boardSel=0;
+function chipBg(it){const n=Math.max(2,nozzles()),c=it.slice(1,n+1);return n===2?`linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)`:`conic-gradient(${c.map((x,i)=>`${x} ${i/n*360}deg ${(i+1)/n*360}deg`).join(',')})`}
+/* custom paint: six pickers (one per possible nozzle), shown while the Custom chip is selected */
+const customOn=()=>PAIRS[pairSel]===CUSTOM;
+function buildCustom(){
+  const host=$('#customInputs'); host.innerHTML='';
+  const n=P.mode==='solid'?1:P.mode==='ribbon'?2:nozzles();
+  for(let k=0;k<6;k++){ const i=document.createElement('input'); i.type='color'; i.value=CUSTOM[k+1]; i.setAttribute('aria-label','Colour '+(k+1));
+    i.style.opacity=k<n?'1':'.4'; i.title=k<n?'Colour '+(k+1):'Colour '+(k+1)+' (used with more nozzles)';
+    i.addEventListener('input',()=>{CUSTOM[k+1]=i.value;cols=CUSTOM.slice(1);remember('pp-custom',CUSTOM.slice(1))}); host.appendChild(i); }
+  $('#custom').hidden=!customOn();
+}
+function buildPairs(){ chips($('#pairs'),PAIRS,()=>pairSel,(it,i)=>{pairSel=i;cols=it.slice(1);buildCustom()},(b,it)=>{b.style.background=chipBg(it)}); }
+buildPairs(); buildCustom();
+$('#roll').addEventListener('click',()=>{
+  const hsl=(h,s,l)=>{h=((h%360)+360)%360;const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')};return '#'+f(0)+f(8)+f(4)};
+  const base=Math.random()*360,spread=60+Math.random()*120;
+  for(let i=0;i<6;i++) CUSTOM[i+1]=hsl(base+(i-2.5)*spread/5+(i===5?180:0),0.6+Math.random()*0.35,0.42+Math.random()*0.25);
+  cols=CUSTOM.slice(1); remember('pp-custom',CUSTOM.slice(1)); buildCustom();
+});
+chips($('#boards'),BOARDS,()=>boardSel,(it,i)=>{boardSel=i;boardCol=it[1];$('#customBoard').hidden=it[0]!=='Custom'},(b,it)=>{b.style.background=it[1]});
+chips($('#tables'),TABLES,()=>tableSel,(it,i)=>{tableSel=i;$('#customTable').hidden=it[0]!=='Custom';drawTable();remember('pp-table',{i,c:TABLES[5][1]})},(b,it)=>{b.style.background=`linear-gradient(${it[1]},${it[2]})`});
+$('#customTable').hidden=TABLES[tableSel][0]!=='Custom';
+$('#tablePick').value=TABLES[5][1];
+$('#tablePick').addEventListener('input',e=>{TABLES[5][1]=TABLES[5][2]=e.target.value;drawTable();remember('pp-table',{i:tableSel,c:e.target.value})});
+$('#boardPick').value=BOARDS[4][1];
+$('#boardPick').addEventListener('input',e=>{boardCol=BOARDS[4][1]=e.target.value;try{localStorage.setItem('pp-boardcol',boardCol)}catch(x){}});
+$('#mode').addEventListener('change',e=>{
+  const was=nozzles(); P.mode=e.target.value; sprev=[]; buildPairs(); buildCustom();
+  const tw=$('#twist'); if(nozzles()>1&&was===1&&+tw.value>0.1){tw.value=0.03;P.twist=0.03;tw.nextElementSibling.textContent='0.03'}
+  else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
+});
+$('#auto').addEventListener('change',e=>P.auto=e.target.checked);
+for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpm',v=>v.toFixed(1)],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)]]){
+  const el=$('#'+id), out=el.nextElementSibling;
+  el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else P[key]=+el.value;out.textContent=fmt(+el.value)});
+}
+$('#catch').addEventListener('click',catchCan);
+$('#clear').addEventListener('click',clearBoard);
+$('#undo').addEventListener('click',undoLast);
+$('#fit').addEventListener('click',()=>{Bm=null;saveBoard();resize()});
+$('#save').addEventListener('click',save);
+$('#full').addEventListener('click',fullscreen);
+const tray=$('#tray'),tab=$('#tab');
+tab.addEventListener('click',()=>{tray.classList.toggle('hidden');tab.textContent=tray.classList.contains('hidden')?'Controls':'Hide'});
+if(Math.min(innerWidth,innerHeight)<560){tray.classList.add('hidden');tab.textContent='Controls'}
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='Escape'){if(armed>=0)disarm();cancelGrab();return}
+  if(e.key===' '){e.preventDefault();catchCan()} else if(e.key==='c') clearBoard(); else if(e.key==='z'||e.key==='u') undoLast(); else if(e.key==='s') save(); else if(e.key==='f') fullscreen(); else if(e.key==='h') tab.click();
+});
+view.addEventListener('dblclick',fullscreen);
+
+/* loop */
+let last=performance.now(),acc=0,uiT=0;
+function frame(now){
+  const el=Math.min(0.05,(now-last)/1000); last=now; acc+=el;
+  boardPx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x,B.y,B.w,B.h); pctx.clip();
+  let n=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
+  pctx.restore();
+  render();
+  uiT+=el; if(uiT>0.1){uiT=0;$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
+  requestAnimationFrame(frame);
+}
+addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
+</script>
