@@ -227,6 +227,7 @@
           <dt>Esc while pulling</dt><dd>cancel the pull</dd>
           <dt>Drag an edge or corner</dt><dd>resize the board</dd>
           <dt>Drag the brass handle (top edge)</dt><dd>move the board under the pendulum, paint and all (Shift-drag on the board does the same)</dd>
+          <dt>Drag the dashed ring round the can at rest</dt><dd>move the pivot over the board; the board and its paint stay put</dd>
           <dt>Pull the steel handle (left edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
           <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
@@ -501,6 +502,10 @@ function render(){
   ctx.lineCap='round';
   ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pv[0],pv[1]); ctx.lineTo(cp[0],cp[1]); ctx.stroke();
   ctx.fillStyle='#e6cb94'; ctx.beginPath(); ctx.arc(pv[0],pv[1],3.5,0,TAU); ctx.fill();
+  if(canAtRest()){ // brass ring: drag it to move the pivot over the board
+    const lit=hover==='pivot'||!!pivotDrag; ctx.strokeStyle=lit?'#e6cb94':'rgba(230,203,148,.55)'; ctx.lineWidth=lit?3:2; ctx.setLineDash([5,6]);
+    ctx.beginPath(); ctx.arc(cp[0],cp[1],30,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+    if(lit){ ctx.font='700 12px '+getComputedStyle(document.body).getPropertyValue('--display'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=6; ctx.fillText('move the pivot',cp[0],cp[1]-40); ctx.shadowBlur=0; } }
   ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cp[0]+6,cp[1]+9,19,15,0,0,TAU); ctx.fill();
   const n=nozzles();
   if(n===1){ if(flowing){ ctx.strokeStyle=cols[0]; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(cp[0],cp[1]); ctx.lineTo(lp[0],lp[1]); ctx.stroke(); } }
@@ -568,12 +573,15 @@ function pushRect(){ boardPx(); const h=Math.min(64,B.h*0.4); return {x:B.x-9,y:
 function edgeAt(sx,sy,tol){
   const hr=handleRect(), pad=tol>14?12:4; if(showRig&&sx>=hr.x-pad&&sx<=hr.x+hr.w+pad&&sy>=hr.y-pad&&sy<=hr.y+hr.h+pad) return 'move';
   const pr=pushRect(); if(showRig&&sx>=pr.x-pad&&sx<=pr.x+pr.w+pad&&sy>=pr.y-pad&&sy<=pr.y+pr.h+pad) return 'push';
+  if(showRig&&canAtRest()){ const c=bpxOf(can.p), d=Math.hypot(sx-c[0],sy-c[1]); if(d>(tol>14?18:22)&&d<(tol>14?46:38)) return 'pivot'; }
   boardPx(); const nx=Math.abs(sx-B.x)<tol, px=Math.abs(sx-(B.x+B.w))<tol, ny=Math.abs(sy-B.y)<tol, py=Math.abs(sy-(B.y+B.h))<tol;
   const inX=sx>B.x-tol&&sx<B.x+B.w+tol, inY=sy>B.y-tol&&sy<B.y+B.h+tol;
   if(!inX||!inY) return null;
   const h=(ny?'n':py?'s':'')+(nx?'w':px?'e':''); return h||null;
 }
-const CURS={n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-resize',sw:'nesw-resize',nw:'nwse-resize',se:'nwse-resize',move:'move',push:'grab'};
+const canAtRest=()=>!running&&!grabbed&&!demo&&Math.hypot(can.p[0],can.p[1])<0.01;
+function bpxOf(p){ const q=toBoard(p[0],p[1]); return bpx(q); }   // board-frame px of a pivot-frame point (same space as edgeAt)
+const CURS={pivot:'move',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize',ne:'nesw-resize',sw:'nesw-resize',nw:'nwse-resize',se:'nwse-resize',move:'move',push:'grab'};
 let moveFrom=null;
 function applyResize(h,sx,sy){
   const mx=(sx-W/2)/ppm,my=(sy-H/2)/ppm,min=0.12;
@@ -603,6 +611,7 @@ view.addEventListener('pointerdown',e=>{
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
+  if(h==='pivot'){ pivotDrag={id:e.pointerId,x:e.clientX,y:e.clientY,bx:Bm.x,by:Bm.y}; view.style.cursor='move'; $('#hint').classList.add('gone'); return; }
   if(h==='push'){ // pull the board pendulum: it follows the finger from wherever it is now, let go to swing
     bgrab={id:e.pointerId,x0:e.clientX-bd.p[0]*ppm,y0:e.clientY-bd.p[1]*ppm,hist:[{x:bd.p[0],y:bd.p[1],t:performance.now()}]};
     bd.v=[0,0,0]; view.classList.add('grabbing'); $('#hint').classList.add('gone'); return; }
@@ -615,11 +624,15 @@ view.addEventListener('pointerdown',e=>{
 view.addEventListener('pointermove',e=>{
   if(panning){ if(panning.id===e.pointerId){ pan.x+=e.clientX-panning.x; pan.y+=e.clientY-panning.y; panning.x=e.clientX; panning.y=e.clientY; } return; }
   if(resizing){ const [sx,sy]=ptrPx(e); applyResize(resizing,sx,sy); return; }
+  if(pivotDrag){ if(pivotDrag.id!==e.pointerId) return;
+    // the pivot moves on screen; the board and its paint stay where they are: shift the board the other way, pan the view back
+    const dx=e.clientX-pivotDrag.x, dy=e.clientY-pivotDrag.y; pivotDrag.x=e.clientX; pivotDrag.y=e.clientY;
+    Bm.x-=dx/ppm; Bm.y-=dy/ppm; anchor={x:Bm.x,y:Bm.y}; pan.x+=dx; pan.y+=dy; return; }
   if(bgrab){ if(bgrab.id!==e.pointerId) return; placeBoard((e.clientX-bgrab.x0)/ppm,(e.clientY-bgrab.y0)/ppm); const t=performance.now(); bgrab.hist.push({x:bd.p[0],y:bd.p[1],t}); while(bgrab.hist.length>1&&t-bgrab.hist[0].t>140) bgrab.hist.shift(); return; }
   if(!grabbed){ const [sx,sy]=ptrPx(e); hover=edgeAt(sx,sy,12); view.style.cursor=hover?CURS[hover]:''; return; }
   const q=ptr(e); placeCan(q); const t=performance.now(); hist.push({q,t}); while(hist.length>1&&t-hist[0].t>140) hist.shift();
 });
-let bgrab=null;
+let bgrab=null, pivotDrag=null;
 function placeBoard(x,y){ const rmax=0.86*P.L2, r=Math.hypot(x,y); if(r>rmax){x*=rmax/r;y*=rmax/r} bd.p=[x,y,Math.sqrt(Math.max(0,P.L2*P.L2-x*x-y*y))]; bd.v=[0,0,0]; }
 function releaseBoard(){
   if(!bgrab) return; const h=bgrab.hist, t=performance.now(); bgrab=null; view.classList.remove('grabbing');
@@ -634,6 +647,7 @@ function cancelGrab(){ if(bgrab){ bgrab=null; view.classList.remove('grabbing');
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing'); can.p=[0,0,P.L]; can.v=[0,0,0]; hist=[]; }
 function release(e){
   if(e&&e.pointerType==='touch') touches.delete(e.pointerId);
+  if(pivotDrag&&(!e||pivotDrag.id===e.pointerId)){ shiftPaint(Bm.x-pivotDrag.bx,Bm.y-pivotDrag.by); pivotDrag=null; view.style.cursor=''; saveBoard(); savePan(); return; }
   if(bgrab&&(!e||bgrab.id===e.pointerId)){ releaseBoard(); return; }
   if(resizing){
     if(resizing==='move'&&moveFrom) shiftPaint(Bm.x-moveFrom.bx,Bm.y-moveFrom.by); else rebuild();

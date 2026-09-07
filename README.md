@@ -19,7 +19,7 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
   ratio to the can's **String** is yours to choose. **Sway** gives it a random push whenever you release the can.
   **Turn** spins the board.
 - **Flow** and **String** set the line weight and the period; **Air** how fast the swing dies.
-- The board's edges drag to resize it. The brass handle on its top edge moves the board under the pendulum, paint and all (Shift-drag on the board does the same). Paint only lands on the board. **Fit board** restores it.
+- The board's edges drag to resize it. The brass handle on its top edge moves the board under the pendulum, paint and all (Shift-drag on the board does the same). Paint only lands on the board. To put the pivot somewhere else over the board instead, drag the dashed ring round the can while it hangs at rest. **Fit board** restores everything.
 - To slide the whole view instead (board, pivot and can together) drag with the right or middle mouse button, use two fingers on a phone, or the arrow keys; `0` recentres.
 - **Swings** chips: hover to see one swing alone, click to give it another palette or custom colours, or remove it (asked first).
 - **Save** exports the board as a PNG (share sheet on phones).
