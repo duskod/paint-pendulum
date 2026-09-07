@@ -125,6 +125,8 @@
   #helpBox kbd{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
   @media (max-width:720px){ #helpBox .cols{grid-template-columns:1fr} #helpBox dl{grid-template-columns:1fr} #helpBox dt{white-space:normal} #helpBox dd{margin-bottom:4px} }
   #quick{display:none}
+  body.viewing .hud,body.viewing #tray,body.viewing #tab,body.viewing #quick,body.viewing #recipe{display:none!important}
+  body.viewing #view{cursor:default}
   @media (max-width:720px), (pointer:coarse) and (max-height:600px){
     #tray{padding:0 12px 10px;max-height:min(52vh,calc(100vh - 80px));width:calc(100vw - 12px)}
     .row{gap:8px 12px}
@@ -135,7 +137,7 @@
     .readout{font-size:11px}
     #hint{top:38%}
     #tab{display:none}
-    #catch,#undo,#clear,#save,#rig{display:none}
+    #catch,#undo,#clear,#save,#viewBtn{display:none}
     #swingEdit,#swingActs,#confirm{flex-wrap:wrap;max-width:100%}
     #swingRow{align-items:flex-start}
     #quick{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:rgba(24,20,16,.94);border-top:1px solid var(--tray-edge);backdrop-filter:blur(8px);z-index:3}
@@ -163,6 +165,7 @@
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
   <div class="row">
     <div class="group"><span class="lbl">Paint</span><div class="chips" id="pairs"></div>
+      <span class="custom" id="penColour" hidden title="Pen colour"><input type="color" id="penPick" aria-label="Pen colour"></span>
       <span class="custom" id="custom" hidden><span id="customInputs" style="display:contents"></span><button class="b sm" id="roll" title="Roll a fresh set of six">Roll</button></span>
     </div>
     <div class="group"><span class="lbl">Board</span><div class="chips" id="boards"></div>
@@ -196,7 +199,8 @@
       <button class="b" id="fit" title="Board back to full table, view recentred">Fit board</button>
       <button class="b" id="save">Save</button>
       <button class="b" id="full">Full</button>
-      <button class="b" id="rig" title="Show or hide the can, string and handle (v)">Hide rig</button>
+      <button class="b primary" id="viewBtn" title="See the picture alone: no rig, no controls (v). Tap or any key to come back">View</button>
+      <button class="b" id="rig" title="Show or hide the can, string and handle (r)">Hide rig</button>
       <button class="b" id="help" title="All the controls (?)">?</button>
     </div>
   </div>
@@ -207,7 +211,7 @@
   <button class="q" id="qUndo" disabled>Undo</button>
   <button class="q" id="qClear">Clear</button>
   <button class="q" id="qSave">Save</button>
-  <button class="q" id="qRig">Rig</button>
+  <button class="q on" id="qView">View</button>
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
@@ -230,6 +234,7 @@
           <dt>Drag the dashed ring round the can at rest</dt><dd>move the pivot over the board; the board and its paint stay put</dd>
           <dt>Pull the steel handle (left edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
           <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
+          <dt>View button</dt><dd>the picture alone: rig, tray and readouts all go; tap or any key brings them back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
@@ -243,7 +248,8 @@
           <dt><kbd>z</kbd> <kbd>u</kbd></dt><dd>undo</dd>
           <dt><kbd>c</kbd></dt><dd>clear the board</dd>
           <dt><kbd>s</kbd></dt><dd>save a PNG</dd>
-          <dt><kbd>v</kbd></dt><dd>show or hide the rig</dd>
+          <dt><kbd>v</kbd></dt><dd>view the picture alone; any key or tap comes back</dd>
+          <dt><kbd>r</kbd></dt><dd>show or hide the rig</dd>
           <dt><kbd>f</kbd></dt><dd>full screen</dd>
           <dt><kbd>h</kbd></dt><dd>hide or show the tray</dd>
           <dt><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt><dd>pan the view (Shift for big steps)</dd>
@@ -488,7 +494,7 @@ function render(){
     ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pr.x+pr.w/2,pr.y+pr.h/2,5,0,TAU); ctx.stroke(); }
   // corner ticks so the edges read as handles
   ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=2; const L=12;
-  for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
+  if(!viewing) for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
     ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke();
   }
   if(resizing&&resizing!=='move'){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
@@ -599,6 +605,7 @@ function placeCan(q){
 let panning=null; const touches=new Map();
 view.addEventListener('contextmenu',e=>e.preventDefault());
 view.addEventListener('pointerdown',e=>{
+  if(viewing){ setViewing(false); e.preventDefault(); return; }
   if(e.pointerType==='touch'){ touches.set(e.pointerId,[e.clientX,e.clientY]);
     if(touches.size===2){ // second finger: pan the view instead of whatever the first finger started
       cancelGrab(); if(resizing){ if(resizing==='move'&&moveFrom){Bm.x=moveFrom.bx;Bm.y=moveFrom.by;anchor={x:Bm.x,y:Bm.y}} resizing=null; moveFrom=null; }
@@ -836,7 +843,7 @@ function chips(host,list,getSel,onPick,paintChip){
   [...host.children].forEach((c,j)=>c.classList.toggle('on',j===getSel()));
 }
 let pairSel=0,boardSel=0;
-function chipBg(it,nn){const n=Math.max(2,nn||nozzles()),c=it.slice(1,n+1);return n===2?`linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)`:`conic-gradient(${c.map((x,i)=>`${x} ${i/n*360}deg ${(i+1)/n*360}deg`).join(',')})`}
+function chipBg(it,nn){const n=nn||colourCount(P.mode),c=it.slice(1,Math.max(2,n)+1);if(n===1)return it[1];return n===2?`linear-gradient(135deg,${c[0]} 50%,${c[1]} 50%)`:`conic-gradient(${c.map((x,i)=>`${x} ${i/n*360}deg ${(i+1)/n*360}deg`).join(',')})`}
 /* custom paint: six pickers (one per possible nozzle), shown while the Custom chip is selected */
 const customOn=()=>PAIRS[pairSel]===CUSTOM;
 function buildCustom(){
@@ -847,7 +854,10 @@ function buildCustom(){
     i.addEventListener('input',()=>{CUSTOM[k+1]=i.value;cols=CUSTOM.slice(1);remember('pp-custom',CUSTOM.slice(1))}); host.appendChild(i); }
   $('#custom').hidden=!customOn(); requestAnimationFrame(placeTray);
 }
-function buildPairs(){ chips($('#pairs'),PAIRS,()=>pairSel,(it,i)=>{pairSel=i;cols=it.slice(1);buildCustom()},(b,it)=>{b.style.background=chipBg(it)}); }
+function buildPairs(){ chips($('#pairs'),PAIRS,()=>pairSel,(it,i)=>{pairSel=i;cols=it.slice(1);buildCustom();syncPen()},(b,it)=>{b.style.background=chipBg(it)}); syncPen(); }
+/* one-colour nozzles (pen, single): the chips show one colour each and a picker sets it directly */
+function syncPen(){ const one=colourCount(P.mode)===1; $('#penColour').hidden=!one||customOn(); if(one) $('#penPick').value=cols[0]; }
+$('#penPick').addEventListener('input',e=>{ cols[0]=e.target.value; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); });
 buildPairs(); buildCustom();
 $('#roll').addEventListener('click',()=>{
   const hsl=(h,s,l)=>{h=((h%360)+360)%360;const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;const c=l-a*Math.max(-1,Math.min(k-3,9-k,1));return Math.round(c*255).toString(16).padStart(2,'0')};return '#'+f(0)+f(8)+f(4)};
@@ -863,7 +873,7 @@ $('#tablePick').addEventListener('input',e=>{TABLES[5][1]=TABLES[5][2]=e.target.
 $('#boardPick').value=BOARDS[4][1];
 $('#boardPick').addEventListener('input',e=>{boardCol=BOARDS[4][1]=e.target.value;try{localStorage.setItem('pp-boardcol',boardCol)}catch(x){}});
 $('#mode').addEventListener('change',e=>{
-  const was=nozzles(); P.mode=e.target.value; sprev=[]; buildPairs(); buildCustom();
+  const was=nozzles(); P.mode=e.target.value; sprev=[]; buildPairs(); buildCustom(); syncPen();
   const tw=$('#twist'); if(nozzles()>1&&was===1&&+tw.value>0.1){tw.value=0.03;P.twist=0.03;tw.nextElementSibling.textContent='0.03'}
   else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
 });
@@ -880,8 +890,16 @@ $('#save').addEventListener('click',save);
 $('#full').addEventListener('click',fullscreen);
 /* rig: the can, string, pivot and board handle. Hide it to see the painting on its own. */
 let showRig=true;
-function setRig(on){ showRig=on; $('#rig').textContent=on?'Hide rig':'Show rig'; $('#qRig').classList.toggle('on',!on); $('#qRig').textContent=on?'Rig':'Rig off'; }
-$('#rig').addEventListener('click',()=>setRig(!showRig)); $('#qRig').addEventListener('click',()=>setRig(!showRig));
+function setRig(on){ showRig=on; $('#rig').textContent=on?'Hide rig':'Show rig'; }
+$('#rig').addEventListener('click',()=>setRig(!showRig));
+/* view mode: picture only. Everything else hides at once; a tap or any key brings it all back */
+let viewing=false, rigBefore=true;
+function setViewing(on){
+  if(on===viewing) return; viewing=on; document.body.classList.toggle('viewing',on);
+  if(on){ rigBefore=showRig; setRig(false); toast('Tap the picture or press any key to come back',3000); }
+  else { setRig(rigBefore); }
+}
+$('#viewBtn').addEventListener('click',()=>setViewing(true)); $('#qView').addEventListener('click',()=>setViewing(true));
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
 $('#help').addEventListener('click',()=>showHelp(true)); $('#helpClose').addEventListener('click',()=>showHelp(false));
 $('#helpWrap').addEventListener('click',e=>{ if(e.target.id==='helpWrap') showHelp(false); });
@@ -924,10 +942,12 @@ $('#qMore').addEventListener('click',()=>setTray(tray.classList.contains('hidden
 $('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qClear').addEventListener('click',clearBoard); $('#qSave').addEventListener('click',save);
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
+  if(viewing){ setViewing(false); e.preventDefault(); return; }
   if(e.target.tagName==='INPUT') return;
   if(e.key==='Escape'){ if(!$('#helpWrap').hidden){showHelp(false);return} if(armed>=0)disarm();cancelGrab();return}
   if(e.key==='?'){showHelp($('#helpWrap').hidden);return}
-  if(e.key==='v'){setRig(!showRig);return}
+  if(e.key==='v'){setViewing(true);return}
+  if(e.key==='r'){setRig(!showRig);return}
   if(e.key.startsWith('Arrow')){ const d=e.shiftKey?120:40; if(e.key==='ArrowLeft')pan.x-=d; else if(e.key==='ArrowRight')pan.x+=d; else if(e.key==='ArrowUp')pan.y-=d; else pan.y+=d; savePan(); e.preventDefault(); return; }
   if(e.key==='0'){ pan={x:0,y:0}; savePan(); return; }
   if(e.key===' '){e.preventDefault();catchCan()} else if(e.key==='c') clearBoard(); else if(e.key==='z'||e.key==='u') undoLast(); else if(e.key==='s') save(); else if(e.key==='f') fullscreen(); else if(e.key==='h') tab.click();

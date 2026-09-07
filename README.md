@@ -29,9 +29,9 @@ The control tray drags by its grip; drop it near a side to dock it as a column, 
 
 On a phone a slim bar at the bottom carries Catch, Undo, Clear, Save and More; the full tray opens as a half-height sheet and closes as soon as you touch the board.
 
-**Hide rig** (or `v`, or Rig on the phone bar) hides the can, string and handle to show the painting alone. Press `?` for the full list of controls.
+**View** (or `v`, or View on the phone bar) shows the picture alone: rig, tray and readouts all go, and a tap or any key brings them back. **Hide rig** (`r`) hides just the can, string and handles. Press `?` for the full list of controls.
 
-Keys: `space` catch, `z` undo, `c` clear, `s` save, `v` rig, `f` fullscreen, `h` hide the tray, arrows pan, `0` recentre, `?` help.
+Keys: `space` catch, `z` undo, `c` clear, `s` save, `v` view, `r` rig, `f` fullscreen, `h` hide the tray, arrows pan, `0` recentre, `?` help.
 
 ## Code
 One file, `index.html`, no build step beyond `build.py`, which wraps `src-artifact.html` (the page
