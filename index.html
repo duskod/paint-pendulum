@@ -425,7 +425,7 @@ function stampRun(k,px,py,w){
 }
 function step(dt){
   turnCan(dt);
-  if(demo){ demoStep(); return; }
+  if(demo){ demoStep(dt); return; }
   if(grabbed){ if(!bgrab&&(Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); return; }
   if(running){ stepPend(can,P.L,P.damp,dt); if(!bgrab&&(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); }
   bd.ang+=P.rpm*TAU/60*dt;
@@ -526,16 +526,20 @@ function render(){
     const el=performance.now()-demo.t0, pulling=el<demo.dur;
     ctx.save(); ctx.lineCap='round';
     // fingertip on the can
-    ctx.strokeStyle='rgba(241,236,226,.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.stroke();
-    ctx.fillStyle='rgba(241,236,226,.18)'; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.fill();
+    if(demo.phase!=='board'){ ctx.strokeStyle='rgba(241,236,226,.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.stroke();
+      ctx.fillStyle='rgba(241,236,226,.18)'; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.fill(); }
     ctx.font='700 13px '+getComputedStyle(document.body).getPropertyValue('--display'); ctx.fillStyle='#f1ece2'; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=6;
     const arrow=(x0,y0,vx,vy,label)=>{ const L=Math.hypot(vx,vy); if(L<1e-3) return; const sc=0.28*ppm, ex=x0+vx*sc, ey=y0+vy*sc, ux=vx/L, uy=vy/L;
       ctx.strokeStyle='#e6cb94'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(ex,ey); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12-uy*7,ey-uy*12+ux*7); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12+uy*7,ey-uy*12-ux*7); ctx.stroke();
       ctx.fillText(label,ex+ux*16,ey+uy*16+5); };
-    if(pulling) ctx.fillText('pulling the can out…',cp[0],cp[1]-36);
-    else { ctx.fillText('now flick it this way and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],'');
-      if(Math.hypot(demo.bvx,demo.bvy)>1e-3){ const hr=pushRect(); const bx=hr.x+hr.w/2, by=hr.y+hr.h/2; const bb=scr(toBoard(demo.bvx,demo.bvy)), b0=scr(toBoard(0,0)); arrow(bx+pan.x*0,by,(bb[0]-b0[0])/ppm,(bb[1]-b0[1])/ppm,'board push'); } }
+    if(demo.phase==='board'){
+      const hr=pushRect(), hx=hr.x+hr.w/2+bd.p[0]*ppm, hy=hr.y+hr.h/2+bd.p[1]*ppm;   // the handle rides with the board
+      ctx.strokeStyle='rgba(241,236,226,.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,26,0,TAU); ctx.stroke();
+      ctx.fillText(pulling?'first, pulling the board out by its steel handle…':'now let go: the board swings on its own',hx,hy-36);
+    }
+    else if(pulling) ctx.fillText('now pulling the can out…',cp[0],cp[1]-36);
+    else { ctx.fillText('flick it this way and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],''); }
     ctx.restore();
   }
   ctx.restore();   // end view pan
@@ -595,7 +599,7 @@ view.addEventListener('pointerdown',e=>{
   if(e.button!==undefined&&e.button!==0) return;
   if(panning) return;
   if(phone()&&!tray.classList.contains('hidden')) setTray(false);
-  if(demo){ demo=null; stopCan(); } after=null;
+  if(demo){ demo=null; stopCan(); bd.p=[0,0,P.L2]; bd.v=[0,0,0]; } after=null;
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
@@ -660,21 +664,29 @@ let demo=null, after=null;   // `after`: the launch arrow lingers on the board f
 function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   cancelGrab(); stopCan();
   const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
-  demo={t0:performance.now(),dur:2000,hold:2200,cx,cy,cvx,cvy,bx,by,bvx,bvy};
-  toast('Watch: the can is pulled out, then flicked along the arrow and let go',demo.dur+demo.hold+3500);
+  const bsp=Math.hypot(bvx,bvy), w2=Math.sqrt(G/P.L2);
+  // a hand can't give the board a velocity from rest: pull it out the other way and let go, same amplitude
+  const dB=bsp>1e-3?[-bvx/bsp*(bsp/w2),-bvy/bsp*(bsp/w2)]:null;
+  demo={phase:dB?'board':'can',t0:performance.now(),dur:2000,hold:2200,cx,cy,cvx,cvy,dB};
+  toast(dB?'Watch: the board is pulled out and let go first, then the can':'Watch: the can is pulled out, then flicked along the arrow and let go',demo.dur+demo.hold+(dB?demo.dur+demo.hold:0)+3500);
 }
-function demoStep(){
+function demoStep(dt){
   if(!demo) return;
   const el=performance.now()-demo.t0, p=Math.min(1,el/demo.dur), e=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  if(demo.phase==='board'){
+    const x=demo.dB[0]*e,y=demo.dB[1]*e; bd.p=[x,y,Math.sqrt(Math.max(0,P.L2*P.L2-x*x-y*y))]; bd.v=[0,0,0];
+    if(el>=demo.dur+demo.hold){ demo.phase='can'; demo.t0=performance.now(); }   // let go: it swings
+    return;
+  }
+  // can phase: the board keeps swinging underneath
+  if(Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4) stepPend(bd,P.L2,P.damp2,dt);
   const x=demo.cx*e,y=demo.cy*e; can.p=[x,y,Math.sqrt(Math.max(0,P.L*P.L-x*x-y*y))]; can.v=[0,0,0];
-  if(el>=demo.dur+demo.hold){ const d=demo; demo=null; after={t0:performance.now(),d,cp:scr(toBoard(d.cx,d.cy))}; driveNow(d.cx,d.cy,d.cvx,d.cvy,d.bx,d.by,d.bvx,d.bvy); }
+  if(el>=demo.dur+demo.hold){ const d=demo; demo=null; after={t0:performance.now(),d,cp:scr(toBoard(d.cx,d.cy))}; driveNow(d.cx,d.cy,d.cvx,d.cvy); }
 }
-function driveNow(cx,cy,cvx,cvy,bx,by,bvx,bvy){
+function driveNow(cx,cy,cvx,cvy){   // places the can only; the board is already swinging (or still)
   const r=Math.hypot(cx,cy), rmax=0.86*P.L; if(r>rmax){cx*=rmax/r;cy*=rmax/r}
   const cz=Math.sqrt(Math.max(0,P.L*P.L-cx*cx-cy*cy)); const cvz=cz>1e-3?-(cvx*cx+cvy*cy)/cz:0;
   can.p=[cx,cy,cz]; can.v=[cvx,cvy,cvz];
-  const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); const bvz=bz>1e-3?-(bvx*bx+bvy*by)/bz:0;
-  bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bvz];
   launch();
 }
 function setSlider(id,v){ const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('input')); }
@@ -685,15 +697,15 @@ const K=t=>`<span class="k">${t}</span>`;
 const RECIPES={
   harmonograph:['Nozzle '+K('Pen (thin line)')+', Board '+K('Custom')+' blue, Paint '+K('Custom')+' white.',
     'String '+K('1.60')+', Board str. '+K('1.54')+', Air '+K('0.02')+', Twist '+K('0')+', Turn '+K('0')+'. The two strings differ by 4%, which is what makes the lobes.',
-    'Pull the can about 40 cm to the right and let go with almost no flick, so it swings in a line.',
-    'Pull the steel handle straight down about 35 cm and let go gently: the board swings up and down at its own period.',
+    'First the board: pull the steel handle straight down about 35 cm and let go gently. It swings up and down at its own period; nothing is drawn yet.',
+    'Then the can: pull it about 40 cm to the right and let go with almost no flick, so it swings in a line. Drawing starts the moment you release it.',
     'Leave it 60 to 90 s. The ellipse squeezes into two crossed lobes as the swings drift in and out of step.'],
   rosette:['Nozzle '+K('Pen (thin line)')+', a light paint on a dark board.','String '+K('1.60')+', Air '+K('0.02')+', Twist '+K('0')+'. Leave the board still.',
     'Pull the can about 45 cm to the right, then flick it upward as you let go, so it swings in an ellipse rather than a line.',
     'The ellipse slowly turns on its own: a wide swing on a real pendulum precesses.'],
   lissajous:['Nozzle '+K('Pen (thin line)')+', dark pen on a pale board.','String '+K('1.80')+', Board str. '+K('0.80')+' (four-ninths of the can\'s), Air '+K('0.02')+', Twist '+K('0')+'. The periods are then 2:3.',
-    'Pull the can 40 cm to the right and let go gently, a straight swing.',
-    'Pull the steel handle straight down about 30 cm and let go: the board\'s vertical swing is the faster of the two.'],
+    'First the board: pull the steel handle straight down about 30 cm and let go. Its vertical swing is the faster of the two.',
+    'Then the can: pull it 40 cm to the right and let go gently, a straight swing. The board must already be moving when the pen starts, or the first loops are plain ellipses.'],
   splatter:['Nozzle '+K('Marbled stream')+', Paint '+K('Neon')+', Board '+K('Custom')+' ivory.','Flow '+K('6.5')+', Splat '+K('0.85')+', String '+K('1.40')+', Air '+K('0.09')+', Twist '+K('0')+'.',
     'Pull the can out to the upper right and flick it hard, fast enough that the stream flings droplets.',
     'The heavy flow pools where the can slows and the colour changes every fraction of a second, like a can with several paints tipped in.'],
@@ -701,7 +713,8 @@ const RECIPES={
     'Wait until the bar has idled round to the angle you want, then pull the can 40 cm to the right and flick it upward as you let go.',
     'The six trails bunch when the swing runs along the bar and fan out when it runs across it; the slow twist rotates the bar so they cross over.'],
 };
-function showRecipe(key){ const r=RECIPES[key]; if(!r) return; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); $('#recipe').hidden=false; }
+function showRecipe(key){ const r=RECIPES[key]; if(!r) return;
+  const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':''; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); $('#recipe').hidden=false; }
 $('#recipeClose').addEventListener('click',()=>{$('#recipe').hidden=true});
 const PRESETS={
   harmonograph(){ // pen on the can swinging along x, board swinging along y at a slightly faster period: the two beat
