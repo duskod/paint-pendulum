@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.clockerly.pendulum",
+    "sha256_cert_fingerprints": ["18:7D:81:11:30:D3:DB:EA:A7:3A:BF:65:C0:35:77:54:20:2E:B6:87:82:A5:B5:3B:40:9A:9F:34:D0:CF:05:E3"]
+  }
+}]
