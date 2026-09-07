@@ -98,6 +98,17 @@
   #tab{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.9);border:1px solid var(--tray-edge);border-radius:999px;padding:8px 13px;cursor:pointer;z-index:2}
   #toast{position:fixed;left:50%;top:48px;transform:translateX(-50%);font:600 12px var(--body);background:rgba(24,20,16,.92);color:var(--ink);border:1px solid var(--tray-edge);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
   #toast.show{opacity:1}
+  #helpWrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:5;padding:14px}
+  #helpBox{background:rgba(24,20,16,.97);border:1px solid var(--tray-edge);border-radius:14px;padding:16px 20px 18px;max-width:760px;width:100%;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  #helpBox header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  #helpBox h2{margin:0;font:800 14px var(--display);letter-spacing:.14em;text-transform:uppercase}
+  #helpBox h3{margin:8px 0 6px;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  #helpBox .cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 28px}
+  #helpBox dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font:400 13px/1.35 var(--body)}
+  #helpBox dt{font-weight:600;color:var(--ink);white-space:nowrap}
+  #helpBox dd{margin:0;color:var(--muted)}
+  #helpBox kbd{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
+  @media (max-width:720px){ #helpBox .cols{grid-template-columns:1fr} #helpBox dl{grid-template-columns:1fr} #helpBox dt{white-space:normal} #helpBox dd{margin-bottom:4px} }
   #quick{display:none}
   @media (max-width:720px), (pointer:coarse) and (max-height:600px){
     #tray{padding:0 12px 10px;max-height:min(52vh,calc(100vh - 80px));width:calc(100vw - 12px)}
@@ -109,7 +120,9 @@
     .readout{font-size:11px}
     #hint{top:38%}
     #tab{display:none}
-    #catch,#undo,#clear,#save{display:none}
+    #catch,#undo,#clear,#save,#rig{display:none}
+    #swingEdit,#swingActs,#confirm{flex-wrap:wrap;max-width:100%}
+    #swingRow{align-items:flex-start}
     #quick{position:fixed;left:0;right:0;bottom:0;display:flex;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:rgba(24,20,16,.94);border-top:1px solid var(--tray-edge);backdrop-filter:blur(8px);z-index:3}
     .q{flex:1;font:600 13px var(--body);color:var(--ink);background:#2a231c;border:1px solid #4a3d31;border-radius:9px;padding:10px 4px;cursor:pointer;min-width:0}
     .q:disabled{opacity:.4}
@@ -129,7 +142,7 @@
   <h1>Paint Pendulum</h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Tap the board to catch it. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
+<div id="hint">Pull the can, let go<small>Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
@@ -165,6 +178,8 @@
       <button class="b" id="fit" title="Board back to full table, view recentred">Fit board</button>
       <button class="b" id="save">Save</button>
       <button class="b" id="full">Full</button>
+      <button class="b" id="rig" title="Show or hide the can, string and handle (v)">Hide rig</button>
+      <button class="b" id="help" title="All the controls (?)">?</button>
     </div>
   </div>
 </aside>
@@ -174,9 +189,47 @@
   <button class="q" id="qUndo" disabled>Undo</button>
   <button class="q" id="qClear">Clear</button>
   <button class="q" id="qSave">Save</button>
+  <button class="q" id="qRig">Rig</button>
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
+<div id="helpWrap" hidden>
+  <section id="helpBox" role="dialog" aria-labelledby="helpTitle">
+    <header><h2 id="helpTitle">Controls</h2><button class="b sm" id="helpClose">Close</button></header>
+    <div class="cols">
+      <div>
+        <h3>Mouse and touch</h3>
+        <dl>
+          <dt>Pull the can, let go</dt><dd>launch; the speed and direction you release with set the swing</dd>
+          <dt>Tap the board</dt><dd>catch the can</dd>
+          <dt>Esc while pulling</dt><dd>cancel the pull</dd>
+          <dt>Drag an edge or corner</dt><dd>resize the board</dd>
+          <dt>Drag the brass handle</dt><dd>move the board under the pendulum, paint and all (Shift-drag on the board does the same)</dd>
+          <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
+          <dt>Double-click the board</dt><dd>full screen</dd>
+          <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
+        </dl>
+      </div>
+      <div>
+        <h3>Keys</h3>
+        <dl class="keys">
+          <dt><kbd>space</kbd></dt><dd>catch</dd>
+          <dt><kbd>z</kbd> <kbd>u</kbd></dt><dd>undo</dd>
+          <dt><kbd>c</kbd></dt><dd>clear the board</dd>
+          <dt><kbd>s</kbd></dt><dd>save a PNG</dd>
+          <dt><kbd>v</kbd></dt><dd>show or hide the rig</dd>
+          <dt><kbd>f</kbd></dt><dd>full screen</dd>
+          <dt><kbd>h</kbd></dt><dd>hide or show the tray</dd>
+          <dt><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt><dd>pan the view (Shift for big steps)</dd>
+          <dt><kbd>0</kbd></dt><dd>recentre the view</dd>
+          <dt><kbd>Esc</kbd></dt><dd>cancel a pull, close a prompt</dd>
+          <dt><kbd>?</kbd></dt><dd>this list</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+</div>
 
 <script>
 'use strict';
@@ -381,7 +434,7 @@ function render(){
   ctx.restore();
   rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke();
   // carrying handle on the top edge: drag it to move the board
-  { const hr=handleRect(), lit=hover==='move'||resizing==='move';
+  if(showRig){ const hr=handleRect(), lit=hover==='move'||resizing==='move';
     ctx.fillStyle=lit?'#e6cb94':'#b08d57'; rr(ctx,hr.x,hr.y,hr.w,hr.h,10); ctx.fill();
     ctx.fillStyle='rgba(0,0,0,.45)'; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.arc(hr.x+hr.w/2+i*7,hr.y+hr.h/2,1.4,0,TAU); ctx.fill(); } }
   // corner ticks so the edges read as handles
@@ -393,6 +446,7 @@ function render(){
     ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-24>20?B.y-24:B.y+B.h+18); }
   ctx.restore();
 
+  if(!showRig){ ctx.restore(); return; }   // end view pan; painting only
   const tf=Math.sqrt(2*P.h/G);
   const pv=scr(toBoard(0,0)), cp=scr(toBoard(can.p[0],can.p[1]));
   const lp=scr(toBoard(can.p[0]+can.v[0]*tf,can.p[1]+can.v[1]*tf));
@@ -435,7 +489,7 @@ function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 let resizing=null, hover=null;
 function handleRect(){ boardPx(); const w=Math.min(64,B.w*0.4); return {x:B.x+B.w/2-w/2,y:B.y-9,w,h:20}; }
 function edgeAt(sx,sy,tol){
-  const hr=handleRect(), pad=tol>14?12:4; if(sx>=hr.x-pad&&sx<=hr.x+hr.w+pad&&sy>=hr.y-pad&&sy<=hr.y+hr.h+pad) return 'move';
+  const hr=handleRect(), pad=tol>14?12:4; if(showRig&&sx>=hr.x-pad&&sx<=hr.x+hr.w+pad&&sy>=hr.y-pad&&sy<=hr.y+hr.h+pad) return 'move';
   boardPx(); const nx=Math.abs(sx-B.x)<tol, px=Math.abs(sx-(B.x+B.w))<tol, ny=Math.abs(sy-B.y)<tol, py=Math.abs(sy-(B.y+B.h))<tol;
   const inX=sx>B.x-tol&&sx<B.x+B.w+tol, inY=sy>B.y-tol&&sy<B.y+B.h+tol;
   if(!inX||!inY) return null;
@@ -471,7 +525,7 @@ view.addEventListener('pointerdown',e=>{
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
   if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
-  view.classList.add('grabbing');
+  view.classList.add('grabbing'); if(!showRig) setRig(true);
   grabbed=true; running=false; flowing=false; stillFor=0;
   bd.p=[0,0,P.L2]; bd.v=[0,0,0];
   const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
@@ -634,6 +688,13 @@ $('#undo').addEventListener('click',undoLast);
 $('#fit').addEventListener('click',()=>{Bm=null;pan={x:0,y:0};savePan();saveBoard();resize()});
 $('#save').addEventListener('click',save);
 $('#full').addEventListener('click',fullscreen);
+/* rig: the can, string, pivot and board handle. Hide it to see the painting on its own. */
+let showRig=true;
+function setRig(on){ showRig=on; $('#rig').textContent=on?'Hide rig':'Show rig'; $('#qRig').classList.toggle('on',!on); $('#qRig').textContent=on?'Rig':'Rig off'; }
+$('#rig').addEventListener('click',()=>setRig(!showRig)); $('#qRig').addEventListener('click',()=>setRig(!showRig));
+function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
+$('#help').addEventListener('click',()=>showHelp(true)); $('#helpClose').addEventListener('click',()=>showHelp(false));
+$('#helpWrap').addEventListener('click',e=>{ if(e.target.id==='helpWrap') showHelp(false); });
 const tray=$('#tray'),tab=$('#tab');
 /* the tray floats: drag it by the grip anywhere, or drop it near an edge to dock (sides become a column) */
 let trayPos=null; try{trayPos=JSON.parse(localStorage.getItem('pp-tray')||'null')}catch(e){}
@@ -674,7 +735,9 @@ $('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('c
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
-  if(e.key==='Escape'){if(armed>=0)disarm();cancelGrab();return}
+  if(e.key==='Escape'){ if(!$('#helpWrap').hidden){showHelp(false);return} if(armed>=0)disarm();cancelGrab();return}
+  if(e.key==='?'){showHelp($('#helpWrap').hidden);return}
+  if(e.key==='v'){setRig(!showRig);return}
   if(e.key.startsWith('Arrow')){ const d=e.shiftKey?120:40; if(e.key==='ArrowLeft')pan.x-=d; else if(e.key==='ArrowRight')pan.x+=d; else if(e.key==='ArrowUp')pan.y-=d; else pan.y+=d; savePan(); e.preventDefault(); return; }
   if(e.key==='0'){ pan={x:0,y:0}; savePan(); return; }
   if(e.key===' '){e.preventDefault();catchCan()} else if(e.key==='c') clearBoard(); else if(e.key==='z'||e.key==='u') undoLast(); else if(e.key==='s') save(); else if(e.key==='f') fullscreen(); else if(e.key==='h') tab.click();
