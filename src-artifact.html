@@ -146,6 +146,7 @@
     <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option><option value="pen">Pen (thin line)</option><option value="marbled">Marbled stream</option></select></label>
     <button class="b primary" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
     <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
+    <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
     <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
   </div>
@@ -206,6 +207,7 @@
           <dt>Pull the steel handle (left edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
           <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
           <dt>View button</dt><dd>the picture alone: rig, tray and readouts all go; tap or any key brings them back</dd>
+          <dt>Movie mode</dt><dd>on by default: five seconds after a pattern starts with nothing touched, the same happens by itself; move the mouse, touch or press a key to come back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
@@ -652,7 +654,7 @@ function launch(){
   remember_state();
   cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
   running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
-  if(!showRig) setRig(true); $('#hint').classList.add('gone');
+  if(!showRig) setRig(true); $('#hint').classList.add('gone'); lastActivity=performance.now();   // movie mode counts from here
 }
 /* drive the rig: place the can (metres from the pivot's rest point) and the board pendulum, give each a velocity, go */
 let demo=null, after=null;   // `after`: the launch arrow lingers on the board for a few seconds after release
@@ -961,11 +963,25 @@ let showRig=true;
 function setRig(on){ showRig=on; $('#rig').textContent=on?'Hide rig':'Show rig'; }
 $('#rig').addEventListener('click',()=>setRig(!showRig));
 /* view mode: picture only. Everything else hides at once; a tap or any key brings it all back */
-let viewing=false, rigBefore=true;
-function setViewing(on){
-  if(on===viewing) return; viewing=on; document.body.classList.toggle('viewing',on);
-  if(on){ rigBefore=showRig; setRig(false); toast('Tap the picture or press any key to come back',3000); }
+let viewing=false, rigBefore=true, viewAuto=false;
+function setViewing(on,auto=false){
+  if(on===viewing) return; viewing=on; viewAuto=on&&auto; document.body.classList.toggle('viewing',on);
+  if(on){ rigBefore=showRig; setRig(false); if(!auto) toast('Tap the picture or press any key to come back',3000); }
   else { setRig(rigBefore); }
+}
+/* movie mode: with a pattern running and nothing touched for a few seconds, slip into view mode on its own;
+   any movement, touch or key brings everything back, and it drifts away again if left alone */
+let movie=true; try{ if(localStorage.getItem('pp-movie')==='0') movie=false; }catch(e){}
+$('#movie').checked=movie; $('#movie').addEventListener('change',e=>{ movie=e.target.checked; try{localStorage.setItem('pp-movie',movie?'1':'0')}catch(x){} if(!movie&&viewAuto) setViewing(false); });
+let lastActivity=performance.now(), lastPX=0, lastPY=0, overTray=false;
+function activity(){ lastActivity=performance.now(); if(viewing&&viewAuto) setViewing(false); }
+addEventListener('pointermove',e=>{ if(Math.hypot(e.clientX-lastPX,e.clientY-lastPY)>6){ lastPX=e.clientX; lastPY=e.clientY; activity(); } },{passive:true});
+addEventListener('pointerdown',()=>{ lastActivity=performance.now(); },{passive:true,capture:true});
+addEventListener('wheel',activity,{passive:true});
+$('#tray').addEventListener('pointerenter',()=>overTray=true); $('#tray').addEventListener('pointerleave',()=>overTray=false);
+function movieTick(){
+  if(!movie||viewing||!running||demo||grabbed||bgrab||resizing||panning||armed>=0||overTray||!$('#helpWrap').hidden) return;
+  if(performance.now()-lastActivity>5000) setViewing(true,true);
 }
 $('#viewBtn').addEventListener('click',()=>setViewing(true)); $('#qView').addEventListener('click',()=>setViewing(true));
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
@@ -1010,6 +1026,7 @@ $('#qMore').addEventListener('click',()=>setTray(tray.classList.contains('hidden
 $('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qSave').addEventListener('click',save);
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
+  lastActivity=performance.now();
   if(viewing){ setViewing(false); e.preventDefault(); return; }
   if(e.target.tagName==='INPUT') return;
   if(e.key==='Escape'){ if(!$('#helpWrap').hidden){showHelp(false);return} if(armed>=0)disarm();cancelGrab();return}
@@ -1032,7 +1049,7 @@ function frame(now){
   let n=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
   render();
-  uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
+  uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
   requestAnimationFrame(frame);
 }
 addEventListener('resize',resize); resize(); requestAnimationFrame(frame);

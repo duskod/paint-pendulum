@@ -32,7 +32,7 @@ The control tray drags by its grip; drop it near a side to dock it as a column, 
 
 On a phone a slim bar at the bottom carries Catch, Undo, Clear, Save and More; the full tray opens as a half-height sheet and closes as soon as you touch the board.
 
-**View** (or `v`, or View on the phone bar) shows the picture alone: rig, tray and readouts all go, and a tap or any key brings them back. **Hide rig** (`r`) hides just the can, string and handles. Press `?` for the full list of controls.
+**Movie mode** (on by default) fades the controls and rig away five seconds after a pattern starts if nothing is touched; move the mouse, touch the screen or press a key and they return. **View** (or `v`, or View on the phone bar) does the same on demand: rig, tray and readouts all go, and a tap or any key brings them back. **Hide rig** (`r`) hides just the can, string and handles. Press `?` for the full list of controls.
 
 Keys: `space` catch, `z` undo, `c` clear, `s` save, `v` view, `r` rig, `f` fullscreen, `h` hide the tray, arrows pan, `0` recentre, `?` help.
 
