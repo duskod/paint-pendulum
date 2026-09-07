@@ -43,8 +43,8 @@
   #view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
   #view.grabbing{cursor:grabbing}
   .hud{position:fixed;top:14px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
-  h1{margin:0;font:800 14px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
-  .readout{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  h1{margin:0;font:800 14px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.6);padding:6px 10px;border-radius:8px}
+  .readout{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;background:rgba(24,20,16,.6);padding:6px 10px;border-radius:8px}
   .readout b{font-weight:500;color:var(--ink)}
   #hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);font:700 clamp(18px,3.4vw,26px) var(--display);color:rgba(241,236,226,.9);pointer-events:none;transition:opacity .7s;text-align:center;text-shadow:0 2px 14px #000;letter-spacing:.02em}
   #hint small{display:block;font:500 13px var(--body);color:var(--muted);margin-top:8px;letter-spacing:.04em}
@@ -98,6 +98,13 @@
   #tab{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.9);border:1px solid var(--tray-edge);border-radius:999px;padding:8px 13px;cursor:pointer;z-index:2}
   #toast{position:fixed;left:50%;top:48px;transform:translateX(-50%);font:600 12px var(--body);background:rgba(24,20,16,.92);color:var(--ink);border:1px solid var(--tray-edge);padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:3}
   #toast.show{opacity:1}
+  #recipe{position:fixed;right:14px;top:48px;width:min(340px,calc(100vw - 28px));background:rgba(24,20,16,.95);border:1px solid var(--tray-edge);border-radius:12px;padding:10px 14px 12px;z-index:4;box-shadow:0 12px 36px rgba(0,0,0,.5);font:400 13px/1.4 var(--body);color:var(--ink)}
+  #recipe header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+  #recipe header b{font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase}
+  #recipe ol{margin:0;padding-left:18px;display:grid;gap:4px}
+  #recipe li::marker{color:var(--muted)}
+  #recipe .k{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:0 5px;color:var(--ink);white-space:nowrap}
+  @media (max-width:720px){ #recipe{top:auto;bottom:calc(64px + env(safe-area-inset-bottom));left:8px;width:calc(100vw - 16px);max-height:40vh;overflow:auto;font-size:12px} }
   #helpWrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:5;padding:14px}
   #helpBox{background:rgba(24,20,16,.97);border:1px solid var(--tray-edge);border-radius:14px;padding:16px 20px 18px;max-width:760px;width:100%;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
   #helpBox header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -167,7 +174,7 @@
   <div class="row">
     <label class="sl">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="The can's string: sets its period">String <input type="range" id="L" min="0.6" max="3" step="0.05" value="1.6"><output>1.60</output></label>
-    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the bottom edge to swing it.">Board str. <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
+    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Board str. <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
     <label class="sl">Air <input type="range" id="damp" min="0.01" max="0.35" step="0.01" value="0.06"><output>0.06</output></label>
     <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="-3" max="3" step="0.1" value="0"><output>0</output></label>
@@ -196,6 +203,10 @@
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
+<aside id="recipe" hidden aria-label="How to reproduce this example">
+  <header><b id="recipeTitle"></b><button class="b sm" id="recipeClose">Close</button></header>
+  <ol id="recipeSteps"></ol>
+</aside>
 <div id="helpWrap" hidden>
   <section id="helpBox" role="dialog" aria-labelledby="helpTitle">
     <header><h2 id="helpTitle">Controls</h2><button class="b sm" id="helpClose">Close</button></header>
@@ -208,10 +219,11 @@
           <dt>Esc while pulling</dt><dd>cancel the pull</dd>
           <dt>Drag an edge or corner</dt><dd>resize the board</dd>
           <dt>Drag the brass handle (top edge)</dt><dd>move the board under the pendulum, paint and all (Shift-drag on the board does the same)</dd>
-          <dt>Pull the steel handle (bottom edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
+          <dt>Pull the steel handle (left edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
           <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
         </dl>
       </div>
@@ -507,7 +519,7 @@ function render(){
       ctx.fillText(label,ex+ux*16,ey+uy*16+5); };
     if(pulling) ctx.fillText('pull…',cp[0],cp[1]-36);
     else { ctx.fillText('flick and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],'');
-      if(Math.hypot(demo.bvx,demo.bvy)>1e-3){ const hr=pushRect(); const bx=B.x+B.w/2, by=hr.y+hr.h/2; const bb=scr(toBoard(demo.bvx,demo.bvy)), b0=scr(toBoard(0,0)); arrow(bx+pan.x*0,by,(bb[0]-b0[0])/ppm,(bb[1]-b0[1])/ppm,'board push'); } }
+      if(Math.hypot(demo.bvx,demo.bvy)>1e-3){ const hr=pushRect(); const bx=hr.x+hr.w/2, by=hr.y+hr.h/2; const bb=scr(toBoard(demo.bvx,demo.bvy)), b0=scr(toBoard(0,0)); arrow(bx+pan.x*0,by,(bb[0]-b0[0])/ppm,(bb[1]-b0[1])/ppm,'board push'); } }
     ctx.restore();
   }
   ctx.restore();   // end view pan
@@ -532,7 +544,7 @@ function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 /* board edge handles: which edge or corner is under the pointer */
 let resizing=null, hover=null;
 function handleRect(){ boardPx(); const w=Math.min(64,B.w*0.4); return {x:B.x+B.w/2-w/2,y:B.y-9,w,h:20}; }
-function pushRect(){ boardPx(); const w=Math.min(64,B.w*0.4); return {x:B.x+B.w/2-w/2,y:B.y+B.h-11,w,h:20}; }
+function pushRect(){ boardPx(); const h=Math.min(64,B.h*0.4); return {x:B.x-9,y:B.y+B.h/2-h/2,w:20,h}; }
 function edgeAt(sx,sy,tol){
   const hr=handleRect(), pad=tol>14?12:4; if(showRig&&sx>=hr.x-pad&&sx<=hr.x+hr.w+pad&&sy>=hr.y-pad&&sy<=hr.y+hr.h+pad) return 'move';
   const pr=pushRect(); if(showRig&&sx>=pr.x-pad&&sx<=pr.x+pr.w+pad&&sy>=pr.y-pad&&sy<=pr.y+pr.h+pad) return 'push';
@@ -653,6 +665,28 @@ function setSlider(id,v){ const el=$('#'+id); el.value=v; el.dispatchEvent(new E
 function setMode(m){ $('#mode').value=m; $('#mode').dispatchEvent(new Event('change')); }
 function pickPalette(i){ const b=$('#pairs').children[i]; if(b) b.click(); }
 function setBoardColour(hex){ boardSel=4; boardCol=BOARDS[4][1]=hex; $('#boardPick').value=hex; [...$('#boards').children].forEach((c,j)=>c.classList.toggle('on',j===4)); $('#customBoard').hidden=false; }
+const K=t=>`<span class="k">${t}</span>`;
+const RECIPES={
+  harmonograph:['Nozzle '+K('Pen (thin line)')+', Board '+K('Custom')+' blue, Paint '+K('Custom')+' white.',
+    'String '+K('1.60')+', Board str. '+K('1.54')+', Air '+K('0.02')+', Twist '+K('0')+', Turn '+K('0')+'. The two strings differ by 4%, which is what makes the lobes.',
+    'Pull the can about 40 cm to the right and let go with almost no flick, so it swings in a line.',
+    'Pull the steel handle straight down about 35 cm and let go gently: the board swings up and down at its own period.',
+    'Leave it 60 to 90 s. The ellipse squeezes into two crossed lobes as the swings drift in and out of step.'],
+  rosette:['Nozzle '+K('Pen (thin line)')+', a light paint on a dark board.','String '+K('1.60')+', Air '+K('0.02')+', Twist '+K('0')+'. Leave the board still.',
+    'Pull the can about 45 cm to the right, then flick it upward as you let go, so it swings in an ellipse rather than a line.',
+    'The ellipse slowly turns on its own: a wide swing on a real pendulum precesses.'],
+  lissajous:['Nozzle '+K('Pen (thin line)')+', dark pen on a pale board.','String '+K('1.80')+', Board str. '+K('0.80')+' (four-ninths of the can\'s), Air '+K('0.02')+', Twist '+K('0')+'. The periods are then 2:3.',
+    'Pull the can 40 cm to the right and let go gently, a straight swing.',
+    'Pull the steel handle straight down about 30 cm and let go: the board\'s vertical swing is the faster of the two.'],
+  splatter:['Nozzle '+K('Marbled stream')+', Paint '+K('Neon')+', Board '+K('Custom')+' ivory.','Flow '+K('6.5')+', Splat '+K('0.85')+', String '+K('1.40')+', Air '+K('0.09')+', Twist '+K('0')+'.',
+    'Pull the can out to the upper right and flick it hard, fast enough that the stream flings droplets.',
+    'The heavy flow pools where the can slows and the colour changes every fraction of a second, like a can with several paints tipped in.'],
+  rake:['Nozzle '+K('6 in line')+', Paint '+K('Lagoon')+', Board '+K('Black')+'.','Flow '+K('2.0')+', Gap '+K('2.2')+', Twist '+K('0.03')+', String '+K('1.60')+', Air '+K('0.05')+'.',
+    'Wait until the bar has idled round to the angle you want, then pull the can 40 cm to the right and flick it upward as you let go.',
+    'The six trails bunch when the swing runs along the bar and fan out when it runs across it; the slow twist rotates the bar so they cross over.'],
+};
+function showRecipe(key){ const r=RECIPES[key]; if(!r) return; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); $('#recipe').hidden=false; }
+$('#recipeClose').addEventListener('click',()=>{$('#recipe').hidden=true});
 const PRESETS={
   harmonograph(){ // pen on the can swinging along x, board swinging along y at a slightly faster period: the two beat
     setMode('pen'); setBoardColour('#1f4e9c'); cols=['#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
@@ -672,7 +706,7 @@ const PRESETS={
   rake(){ setMode('6'); setBoardColour('#0c0c0e'); pickPalette(0); setSlider('flow',2); setSlider('splat',0); setSlider('L',1.6); setSlider('damp',0.05); setSlider('twist',0.03); setSlider('gap',2.2); setSlider('rpm',0);
     drive(0.4,-0.05,0.15,0.7, 0,0,0,0); },
 };
-$('#preset').addEventListener('change',e=>{ const f=PRESETS[e.target.value]; e.target.value=''; if(f){ f(); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}

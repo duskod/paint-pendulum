@@ -11,10 +11,10 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 - **Nozzle**: a two-tone ribbon, a single colour, a bar of 3 to 6 holes in a line that leaves parallel
   trails, a **pen** (thin uniform line, never pools) or a **marbled** stream that changes colour as it pours.
   **Gap** sets the hole spacing, **Twist** how fast the can (and bar) turns. **Splat** flings droplets off the stream.
-- **Example** menu: pick one and watch a ghost hand pull the can and flick it, then the pattern draws itself.
+- **Example** menu: pick one and watch a ghost hand pull the can and flick it, then the pattern draws itself; a card lists the settings and gestures to repeat it by hand.
   Harmonograph (the classic two-lobe print: pen on the can, board swinging at a slightly different period),
   Rosette, Lissajous 2:3, Splatter can, Six-colour rake.
-- The board hangs on its own strings as a second pendulum. Pull the **steel handle on its bottom edge** and let go
+- The board hangs on its own strings as a second pendulum. Pull the **steel handle on its left edge** and let go
   to swing it in any direction you like (straight down for a vertical sway); **Board str.** sets its period, so the
   ratio to the can's **String** is yours to choose. **Sway** gives it a random push whenever you release the can.
   **Turn** spins the board.
