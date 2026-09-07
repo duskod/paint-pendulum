@@ -159,7 +159,7 @@
   <h1>Paint Pendulum</h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
+<div id="hint">Pull the can, let go<small>Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
@@ -175,6 +175,8 @@
       <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span>
     </div>
     <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option><option value="pen">Pen (thin line)</option><option value="marbled">Marbled stream</option></select></label>
+    <button class="b primary" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
+    <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
     <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
   </div>
@@ -209,7 +211,7 @@
 <nav id="quick" aria-label="Quick actions">
   <button class="q" id="qCatch">Catch</button>
   <button class="q" id="qUndo" disabled>Undo</button>
-  <button class="q" id="qClear">Clear</button>
+  <button class="q" id="qPlay">Surprise</button>
   <button class="q" id="qSave">Save</button>
   <button class="q on" id="qView">View</button>
   <button class="q" id="qMore" aria-controls="tray">More</button>
@@ -237,6 +239,7 @@
           <dt>View button</dt><dd>the picture alone: rig, tray and readouts all go; tap or any key brings them back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
         </dl>
@@ -255,6 +258,8 @@
           <dt><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt><dd>pan the view (Shift for big steps)</dd>
           <dt><kbd>0</kbd></dt><dd>recentre the view</dd>
           <dt><kbd>Esc</kbd></dt><dd>cancel a pull, close a prompt</dd>
+          <dt><kbd>p</kbd></dt><dd>surprise me</dd>
+          <dt><kbd>a</kbd></dt><dd>auto-play on or off</dd>
           <dt><kbd>?</kbd></dt><dd>this list</dd>
         </dl>
       </div>
@@ -623,7 +628,7 @@ view.addEventListener('pointerdown',e=>{
     bgrab={id:e.pointerId,x0:e.clientX-bd.p[0]*ppm,y0:e.clientY-bd.p[1]*ppm,hist:[{x:bd.p[0],y:bd.p[1],t:performance.now()}]};
     bd.v=[0,0,0]; view.classList.add('grabbing'); $('#hint').classList.add('gone'); return; }
   if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
-  view.classList.add('grabbing'); if(!showRig) setRig(true);
+  view.classList.add('grabbing'); if(!showRig) setRig(true); if(autoplay) setAutoplay(false);
   grabbed=true; running=false; flowing=false; stillFor=0;
   const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
   $('#hint').classList.add('gone');
@@ -763,6 +768,90 @@ const PRESETS={
   rake(){ setMode('6'); setBoardColour('#0c0c0e'); pickPalette(0); setSlider('flow',2); setSlider('splat',0); setSlider('L',1.6); setSlider('damp',0.05); setSlider('twist',0.03); setSlider('gap',2.2); setSlider('rpm',0);
     drive(0.4,-0.05,0.15,0.7, 0,0,0,0); },
 };
+/* Surprise me: compose a pattern from the families that work, with random colours, periods and release moment */
+const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)], cm=v=>Math.round(v*100)+' cm';
+const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>>8)&255)+0.0722*(n&255))/255};
+let autoplay=false, autoT=null, surpriseCount=0;
+function surprise(){
+  cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT);
+  const fam=pick(['harmonograph','harmonograph','lissajous','lissajous','rosette','spiro','rake','ribbon','marbled']);
+  const pal=Math.floor(Math.random()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
+  const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a'], lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
+  const dark=Math.random()<0.6; setBoardColour(pick(dark?darkBoards:lightBoards));
+  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro';
+  if(one){ // a pen: pick the palette colour that contrasts with the board, or plain white/ink
+    const cand=P0.slice(1).filter(c=>dark?lum(c)>0.45:lum(c)<0.5); cols=[cand.length?pick(cand):(dark?'#f2f4f7':'#1a1a1a')].concat(P0.slice(2)); pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); }
+  const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2);
+  const steps=[]; let mode='pen', bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='';
+  const boardSwing=(ratio,angle,A)=>{ // board pendulum at a period ratio, swinging along `angle`, amplitude A, random phase
+    const L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.012,0.03);
+    const w2=Math.sqrt(G/L2), ph=rnd(0,TAU), ux=Math.cos(angle), uy=Math.sin(angle);
+    bx=ux*A*Math.cos(ph); by=uy*A*Math.cos(ph); bvx=-ux*A*w2*Math.sin(ph); bvy=-uy*A*w2*Math.sin(ph);
+    const phase=Math.abs(Math.cos(ph))<0.5?'as the board passes through the middle':Math.abs(Math.cos(ph))>0.85?'as the board reaches the end of its swing':'about a third of the way through the board\'s swing';
+    steps.push(`Board str. ${K(L2.toFixed(2))} (period ratio ${ratio.toFixed(3)} to the can). First the board: pull the steel handle ${cm(A)} ${Math.abs(uy)>0.7?'straight down':Math.abs(ux)>0.7?'sideways':'diagonally'} and let go.`);
+    return phase; };
+  if(fam==='harmonograph'){
+    const ratio=Math.random()<0.5?rnd(0.955,0.985):rnd(1.015,1.045); setSlider('damp',+rnd(0.014,0.028).toFixed(3));
+    const ph=boardSwing(ratio,Math.random()<0.6?Math.PI/2:rnd(0,TAU),rnd(0.25,0.4));
+    const A=rnd(0.35,0.5), a=rnd(0,TAU); cx=Math.cos(a)*A; cy=Math.sin(a)*A; const f=rnd(0,0.12); cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
+    steps.push(`Then the can: pull it ${cm(A)} out and let go with ${f<0.04?'no flick':'a slight sideways flick'}, ${ph}.`);
+    why='The two strings differ by a few percent, so the swings drift in and out of step and the ellipse folds into crossed lobes.';
+  } else if(fam==='lissajous'){
+    const [a,b]=pick([[1,2],[2,3],[3,4],[3,5],[4,5],[2,5]]); setSlider('damp',+rnd(0.012,0.025).toFixed(3));
+    const ph=boardSwing(a/b,Math.PI/2,rnd(0.25,0.38));
+    const A=rnd(0.35,0.48); cx=A; cy=rnd(-0.03,0.03); cvx=0; cvy=rnd(0,0.06);
+    steps.push(`Then the can: pull it ${cm(A)} to the right and let go gently, ${ph}.`);
+    why=`Periods ${a}:${b}: a Lissajous figure. The release moment sets which of its shapes you get.`;
+  } else if(fam==='rosette'){
+    mode=Math.random()<0.5?'pen':'ribbon'; setSlider('damp',+rnd(0.015,0.035).toFixed(3)); setSlider('twist',mode==='ribbon'?+rnd(0.05,0.25).toFixed(2):0); setSlider('L2',1.05);
+    const A=rnd(0.35,0.5), f=rnd(0.35,0.75); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Board still. Pull the can ${cm(A)} to the right and flick it upward as you let go, so it swings in an ellipse.`);
+    why='A wide elliptical swing on a real pendulum precesses: the ellipse turns a little each loop.';
+  } else if(fam==='spiro'){
+    setSlider('damp',+rnd(0.015,0.03).toFixed(3)); setSlider('rpm',+pick([-1,1])*rnd(0.4,1.8).toFixed(1)); setSlider('L2',1.05);
+    const A=rnd(0.3,0.45), f=rnd(0.2,0.6); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Turn ${K(P.rpm.toFixed(1))}: the board turns under the pen. Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
+    why='A turntable under a swinging pen: the ellipse is wound round the centre like a spirograph.';
+  } else if(fam==='rake'){
+    mode=String(pick([3,4,5,6])); setSlider('damp',+rnd(0.03,0.06).toFixed(3)); setSlider('twist',+rnd(0.02,0.08).toFixed(2)); setSlider('gap',+rnd(1.4,3).toFixed(1)); setSlider('flow',+rnd(1.5,2.5).toFixed(1)); setSlider('L2',1.05);
+    const A=rnd(0.35,0.48), f=rnd(0.3,0.7); cx=A; cy=rnd(-0.05,0.05); cvx=rnd(0,0.15); cvy=f;
+    steps.push(`Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
+    why=`${mode} holes in a line: the trails bunch along the bar and fan out across it, and the slow twist makes them cross.`;
+  } else if(fam==='ribbon'){
+    mode='ribbon'; setSlider('damp',+rnd(0.03,0.06).toFixed(3)); setSlider('twist',+rnd(0.05,0.3).toFixed(2)); setSlider('flow',+rnd(1.5,3).toFixed(1)); setSlider('L2',1.05);
+    if(Math.random()<0.5){ const ph=boardSwing(rnd(0.93,0.99),rnd(0,TAU),rnd(0.15,0.3)); steps[steps.length-1]+=' '; }
+    const A=rnd(0.35,0.5), f=rnd(0.3,0.8); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
+    why='A two-tone ribbon that turns as it flows, on a wide precessing ellipse.';
+  } else { // marbled splatter
+    mode='marbled'; setSlider('damp',+rnd(0.06,0.1).toFixed(3)); setSlider('flow',+rnd(5,7).toFixed(1)); setSlider('splat',+rnd(0.6,0.9).toFixed(2)); setSlider('L',+rnd(1.2,1.6).toFixed(2)); setSlider('L2',1.05);
+    const A=rnd(0.3,0.45), a=rnd(0,TAU), f=rnd(0.9,1.5); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
+    steps.push(`Pull the can ${cm(A)} out and flick it hard as you let go, fast enough to fling droplets.`);
+    why='Heavy flow, a marbled stream that changes colour as it pours, and paint flung off the fast parts.';
+  }
+  setMode(mode);
+  steps.unshift(`Nozzle ${K($('#mode').selectedOptions[0].textContent)}, paint ${K(P0[0])}${one?' (one colour)':''}, String ${K(L.toFixed(2))}, Air ${K(P.damp.toFixed(3))}${P.twist?', Twist '+K(P.twist.toFixed(2)):''}${P.splat?', Splat '+K(P.splat.toFixed(2)):''}.`);
+  steps.push(why);
+  // place both pendulums and go
+  const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
+  driveNow(cx,cy,cvx,cvy);
+  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter'}[fam]+' #'+(++surpriseCount);
+  $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
+  const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
+  $('#recipe').hidden=autoplay||phone(); toast(title+(autoplay?' · auto-play':''),3000);
+  if(phone()) setTray(false);
+}
+/* auto-play: when a pattern has died down (or after 80 s), pause, then the next one, on a fresh board most of the time */
+function autoTick(){
+  if(!autoplay) return;
+  const died=!running&&!demo, old=T>80;
+  if(died||old){ clearTimeout(autoT); autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },died?3500:0); autoplay='waiting'; }
+}
+function setAutoplay(on){ if(!on) clearTimeout(autoT); autoplay=on; $('#autoplay').checked=!!on; $('#qPlay').classList.toggle('on',!!on); clearTimeout(autoT); if(on&&!running) surprise(); }
+$('#surprise').addEventListener('click',surprise);
+$('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
+$('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
+$('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
 $('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
@@ -946,7 +1035,7 @@ function placeTray(){
 function setTray(show){ tray.classList.toggle('hidden',!show); tab.textContent=show?'Hide':'Controls'; $('#qMore').classList.toggle('on',show); $('#qMore').textContent=show?'Close':'More'; if(show) requestAnimationFrame(placeTray); }
 tab.addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
 $('#qMore').addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
-$('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qClear').addEventListener('click',clearBoard); $('#qSave').addEventListener('click',save);
+$('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qSave').addEventListener('click',save);
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
   if(viewing){ setViewing(false); e.preventDefault(); return; }
@@ -954,6 +1043,8 @@ addEventListener('keydown',e=>{
   if(e.key==='Escape'){ if(!$('#helpWrap').hidden){showHelp(false);return} if(armed>=0)disarm();cancelGrab();return}
   if(e.key==='?'){showHelp($('#helpWrap').hidden);return}
   if(e.key==='v'){setViewing(true);return}
+  if(e.key==='p'){surprise();return}
+  if(e.key==='a'){setAutoplay(!autoplay);return}
   if(e.key==='r'){setRig(!showRig);return}
   if(e.key.startsWith('Arrow')){ const d=e.shiftKey?120:40; if(e.key==='ArrowLeft')pan.x-=d; else if(e.key==='ArrowRight')pan.x+=d; else if(e.key==='ArrowUp')pan.y-=d; else pan.y+=d; savePan(); e.preventDefault(); return; }
   if(e.key==='0'){ pan={x:0,y:0}; savePan(); return; }
@@ -969,7 +1060,7 @@ function frame(now){
   let n=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
   render();
-  uiT+=el; if(uiT>0.1){uiT=0;$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
+  uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
   requestAnimationFrame(frame);
 }
 addEventListener('resize',resize); resize(); requestAnimationFrame(frame);

@@ -6,6 +6,9 @@ Pull the can, let go, and paint spirals across the board as the pendulum swings,
 down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loops never quite repeat.
 
 ## Playing
+- **Surprise me** (or `p`, or Surprise on the phone bar) composes a pattern for you: a random family (harmonograph,
+  Lissajous, rosette, spirograph, rake, ribbon, splatter) with random colours, periods and release moment, and shows
+  the recipe to repeat it. **Auto-play** (`a`; double-tap Surprise on the phone) keeps serving new ones.
 - **Pull the can and let go.** The speed and direction you release it with set the swing. `Esc` cancels a pull.
 - **Tap the board** (or press **Catch** / `space`) to catch it. **Undo** reverses the last launch, removal or clear.
 - **Nozzle**: a two-tone ribbon, a single colour, a bar of 3 to 6 holes in a line that leaves parallel
