@@ -31,13 +31,21 @@
   #grip:hover::before{background:radial-gradient(circle,#a8967d 1.6px,transparent 1.8px) 0 0/8px 4px}
   #tray.moving #grip{cursor:grabbing}
   /* docked to a side: one narrow column */
-  #tray.vert{width:250px;padding:0 12px 10px}
-  #tray.vert .row{flex-direction:column;align-items:flex-start;gap:10px}
-  #tray.vert .group{flex-wrap:wrap}
-  #tray.vert .chips{flex-wrap:wrap}
-  #tray.vert .btns{margin-left:0;flex-wrap:wrap}
-  #tray.vert .sl input{width:110px}
-  #tray.vert #swingEdit{flex-wrap:wrap}
+  #tray.vert{width:292px;padding:0 12px 10px}
+  #tray.vert .row{flex-direction:column;align-items:stretch;gap:10px}
+  #tray.vert .group{flex-direction:column;align-items:flex-start;gap:6px;width:100%}
+  #tray.vert .chips{flex-wrap:wrap;max-width:100%}
+  #tray.vert .custom{flex-wrap:wrap;max-width:100%}
+  #tray.vert .btns{margin-left:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  #tray.vert .btns .b{padding:7px 4px}
+  #tray.vert .sl{display:grid;grid-template-columns:64px 1fr 4.6ch;align-items:center;gap:0 8px;width:100%}
+  #tray.vert .sl input{width:100%;min-width:0}
+  #tray.vert .sl select{grid-column:2/4;width:100%;min-width:0}
+  #tray.vert .sl output{text-align:right;min-width:0}
+  #tray.vert .tog{width:100%}
+  #tray.vert #swingEdit{flex-wrap:wrap;max-width:100%}
+  #tray.vert #swingRow{align-items:flex-start}
+  #tray.vert #swingHint{white-space:normal}
   .row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
   .group{display:flex;align-items:center;gap:8px}
   .lbl{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -143,7 +151,7 @@
   <div class="row">
     <label class="sl">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="The can's string: sets its period">String <input type="range" id="L" min="0.6" max="3" step="0.05" value="1.6"><output>1.60</output></label>
-    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Board str. <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
+    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Brd str <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
     <label class="sl">Air <input type="range" id="damp" min="0.01" max="0.35" step="0.01" value="0.06"><output>0.06</output></label>
     <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="-3" max="3" step="0.1" value="0"><output>0</output></label>
