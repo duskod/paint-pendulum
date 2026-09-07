@@ -159,7 +159,7 @@
     <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Brd str <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
     <label class="sl">Air <input type="range" id="damp" min="0.01" max="0.35" step="0.01" value="0.06"><output>0.06</output></label>
     <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
-    <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="-3" max="3" step="0.1" value="0"><output>0</output></label>
+    <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="0" max="3" step="0.1" value="0"><output>off</output><button class="b sm" id="rpmDir" title="Direction of turn">&#8635;</button></label>
     <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
     <label class="sl">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="Paint flung off the stream: droplets around the line, blobs where it slows">Splat <input type="range" id="splat" min="0" max="1" step="0.05" value="0"><output>0</output></label>
@@ -691,7 +691,10 @@ function driveNow(cx,cy,cvx,cvy){   // places the can only; the board is already
   can.p=[cx,cy,cz]; can.v=[cvx,cvy,cvz];
   launch();
 }
-function setSlider(id,v){ const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('input')); }
+let rpmDir=1;
+function setRpmDir(d){ rpmDir=d; $('#rpmDir').innerHTML=d>0?'&#8635;':'&#8634;'; P.rpm=+$('#rpm').value*rpmDir; }
+$('#rpmDir').addEventListener('click',()=>setRpmDir(-rpmDir));
+function setSlider(id,v){ if(id==='rpm'){ setRpmDir(v<0?-1:1); v=Math.abs(v); } const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('input')); }
 function setMode(m){ $('#mode').value=m; $('#mode').dispatchEvent(new Event('change')); }
 function pickPalette(i){ const b=$('#pairs').children[i]; if(b) b.click(); }
 function setBoardColour(hex){ boardSel=4; boardCol=BOARDS[4][1]=hex; $('#boardPick').value=hex; [...$('#boards').children].forEach((c,j)=>c.classList.toggle('on',j===4)); $('#customBoard').hidden=false; }
@@ -779,7 +782,7 @@ function surprise(){
   } else if(fam==='spiro'){
     setSlider('damp',+rnd(0.015,0.03).toFixed(3)); setSlider('rpm',+pick([-1,1])*rnd(0.4,1.8).toFixed(1)); setSlider('L2',1.05);
     const A=rnd(0.3,0.45), f=rnd(0.2,0.6); cx=A; cy=0; cvx=0; cvy=f;
-    steps.push(`Turn ${K(P.rpm.toFixed(1))}: the board turns under the pen. Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
+    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(1))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board turns under the pen. Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
     why='A turntable under a swinging pen: the ellipse is wound round the centre like a spirograph.';
   } else if(fam==='rake'){
     mode=String(pick([3,4,5,6])); setSlider('damp',+rnd(0.03,0.06).toFixed(3)); setSlider('twist',+rnd(0.02,0.08).toFixed(2)); setSlider('gap',+rnd(1.4,3).toFixed(1)); setSlider('flow',+rnd(1.5,2.5).toFixed(1)); setSlider('L2',1.05);
@@ -825,7 +828,7 @@ $('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
-function clearBoard(){ if(!swings.length) return; remember_state(); stopCan(); swings=[]; cur=null; rebuild(); listSwings(); angAcc=0; T=0; }
+function clearBoard(){ if(swings.length){ remember_state(); swings=[]; cur=null; rebuild(); listSwings(); } stopCan(); angAcc=0; T=0; if(P.rpm) setSlider('rpm',0); bd.ang=0; }
 /* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
 const history=[];
 function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=$('#qUndo').disabled=false; }
@@ -943,9 +946,9 @@ $('#mode').addEventListener('change',e=>{
   else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
 });
 $('#auto').addEventListener('change',e=>P.auto=e.target.checked);
-for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpm',v=>v.toFixed(1)],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
+for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpmAbs',v=>v>0?v.toFixed(1):'off'],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
   const el=$('#'+id), out=el.nextElementSibling;
-  el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else P[key]=+el.value;out.textContent=fmt(+el.value)});
+  el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else if(key==='rpmAbs')P.rpm=+el.value*rpmDir;else P[key]=+el.value;out.textContent=fmt(+el.value)});
 }
 $('#catch').addEventListener('click',catchCan);
 $('#clear').addEventListener('click',clearBoard);
