@@ -770,13 +770,15 @@ const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>
 let autoplay=false, autoT=null, surpriseCount=0;
 function surprise(){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT);
-  const fam=pick(['harmonograph','harmonograph','lissajous','lissajous','rosette','spiro','rake','ribbon','marbled']);
+  // the theatre wants the intricate two-pendulum figures; the studio button keeps a broader mix
+  const fam=pick(theatre?['harmonograph','harmonograph','lissajous','lissajous','lissajous','twin','twin','lattice','lattice','rake']
+                        :['harmonograph','lissajous','lissajous','twin','lattice','rosette','spiro','rake','ribbon','marbled']);
   const pal=Math.floor(Math.random()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
   const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a'], lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
   const dark=Math.random()<0.6; setBoardColour(pick(dark?darkBoards:lightBoards));
-  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro';
+  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro'||fam==='twin'||fam==='lattice';
   if(one){ // a pen: pick the palette colour that contrasts with the board, or plain white/ink
-    const cand=P0.slice(1).filter(c=>dark?lum(c)>0.45:lum(c)<0.5); cols=[cand.length?pick(cand):(dark?'#f2f4f7':'#1a1a1a')].concat(P0.slice(2)); pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); }
+    const cand=P0.slice(1).filter(c=>dark?lum(c)>0.6:lum(c)<0.35); cols=[cand.length?pick(cand):(dark?'#f2f4f7':'#1a1a1a')].concat(P0.slice(2)); pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); }
   const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2);
   const steps=[]; let mode='pen', bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='';
   const boardSwing=(ratio,angle,A)=>{ // board pendulum at a period ratio, swinging along `angle`, amplitude A, random phase
@@ -793,11 +795,24 @@ function surprise(){
     steps.push(`Then the can: pull it ${cm(A)} out and let go with ${f<0.04?'no flick':'a slight sideways flick'}, ${ph}.`);
     why='The two strings differ by a few percent, so the swings drift in and out of step and the ellipse folds into crossed lobes.';
   } else if(fam==='lissajous'){
-    const [a,b]=pick([[1,2],[2,3],[3,4],[3,5],[4,5],[2,5]]); setSlider('damp',+rnd(0.012,0.025).toFixed(3));
-    const ph=boardSwing(a/b,Math.PI/2,rnd(0.25,0.38));
+    const [a,b]=pick([[1,2],[2,3],[2,3],[3,4],[3,5],[4,5],[2,5],[5,6],[5,7]]); setSlider('damp',+rnd(0.012,0.025).toFixed(3));
+    const ph=boardSwing(a/b*(1+rnd(-0.006,0.006)),Math.PI/2,rnd(0.25,0.38));   // a touch off the exact ratio, so the figure slowly turns inside out
     const A=rnd(0.35,0.48); cx=A; cy=rnd(-0.03,0.03); cvx=0; cvy=rnd(0,0.06);
     steps.push(`Then the can: pull it ${cm(A)} to the right and let go gently, ${ph}.`);
     why=`Periods ${a}:${b}: a Lissajous figure. The release moment sets which of its shapes you get.`;
+  } else if(fam==='twin'){ // board at a near-rational ratio, can on an ellipse: lobed rosettes that evolve
+    const [a,b]=pick([[1,2],[1,3],[2,3],[3,4]]); setSlider('damp',+rnd(0.012,0.024).toFixed(3));
+    const ph=boardSwing(a/b*(1+rnd(-0.012,0.012)),rnd(0,TAU),rnd(0.2,0.34));
+    const A=rnd(0.32,0.46), w1=Math.sqrt(G/L), f=A*w1*rnd(0.35,0.9); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Then the can: pull it ${cm(A)} to the right and flick it upward as you let go (an ellipse), ${ph}.`);
+    why=`Periods ${a}:${b} under an elliptical swing: the ellipse is folded into ${b} lobes that slowly turn as the ratio is a touch off exact.`;
+  } else if(fam==='lattice'){ // a harmonograph on a slowly turning board: the lobes drift round and cross-hatch
+    const ratio=Math.random()<0.5?rnd(0.95,0.985):rnd(1.015,1.05); setSlider('damp',+rnd(0.012,0.024).toFixed(3));
+    setSlider('rpm',+(pick([-1,1])*rnd(0.15,0.5)).toFixed(2));
+    const ph=boardSwing(ratio,rnd(0,TAU),rnd(0.22,0.36));
+    const A=rnd(0.35,0.48), a=rnd(0,TAU), w1=Math.sqrt(G/L), f=A*w1*rnd(0,0.3); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
+    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(2))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board creeps round under the pen. Then the can: pull it ${cm(A)} out and let go with ${f<0.1?'no flick':'a slight flick'}, ${ph}.`);
+    why='A harmonograph on a slowly turning board: the crossed lobes drift round and hatch over each other.';
   } else if(fam==='rosette'){
     mode=Math.random()<0.5?'pen':'ribbon'; setSlider('damp',+rnd(0.015,0.035).toFixed(3)); setSlider('twist',mode==='ribbon'?+rnd(0.05,0.25).toFixed(2):0); setSlider('L2',1.05);
     const A=rnd(0.35,0.5), f=rnd(0.35,0.75); cx=A; cy=0; cvx=0; cvy=f;
@@ -831,7 +846,7 @@ function surprise(){
   // place both pendulums and go
   const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
   driveNow(cx,cy,cvx,cvy);
-  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter'}[fam]+' #'+(++surpriseCount);
+  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',twin:'Twin rosette',lattice:'Lattice',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter'}[fam]+' #'+(++surpriseCount);
   $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
   $('#recipe').hidden=autoplay||phone()||theatre; $('#theatreTitle').textContent=title; if(!theatre) toast(title+(autoplay?' · auto-play':''),3000);
