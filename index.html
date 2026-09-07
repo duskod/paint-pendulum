@@ -1040,18 +1040,19 @@ function setViewing(on,auto=false){
 }
 /* theatre: sit back and watch. Patterns compose themselves (auto-play), the board is held still on screen,
    the rig and every control are gone; a bar appears on movement with Next, Pause, Save, Studio */
-let theatre=false, paused=false, stillT=null;
-function setTheatre(on){
+let theatre=false, paused=false, stillT=null, holdBar=0;
+function setTheatre(on,opts={}){
   if(on===theatre) return; theatre=on; document.body.classList.toggle('theatre',on);
+  try{localStorage.setItem('pp-room',on?'theatre':'studio')}catch(e){}
   if(on){ if(viewing) setViewing(false); setTray(false); $('#recipe').hidden=true; $('#helpWrap').hidden=true; paused=false; $('#thPause').textContent='Pause';
-    if(document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    if(!opts.silent&&document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
     if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
     wake(); }
   else { document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
-function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
+function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); if(performance.now()<holdBar) return; stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
 $('#theatreBtn').addEventListener('click',()=>setTheatre(true)); $('#qTheatre').addEventListener('click',()=>setTheatre(true));
 $('#thNext').addEventListener('click',theatreNext); $('#thStudio').addEventListener('click',()=>setTheatre(false));
 $('#thPause').addEventListener('click',()=>{ paused=!paused; $('#thPause').textContent=paused?'Play':'Pause'; });
@@ -1144,6 +1145,14 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
+(function(){
+  let seen=null,room=null; try{seen=localStorage.getItem('pp-seen'); room=localStorage.getItem('pp-room')}catch(e){}
+  if(!seen){ try{localStorage.setItem('pp-seen','1')}catch(e){}
+    holdBar=performance.now()+20000;   // keep the bar in view through the first pattern, so the Studio is discoverable
+    setTheatre(true,{silent:true}); wake();
+    toast('Sit back and watch. Press Studio to swing the can yourself, Full screen for the full effect.',12000);
+  } else if(room==='theatre'){ setTheatre(true,{silent:true}); }
+})();
 
 // ---- installable app: offline shell
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

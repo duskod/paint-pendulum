@@ -12,6 +12,8 @@ on show. Move the mouse or touch for the bar: Next (`n`, `→`), Pause (`p`), Sa
 
 **Studio**: everything below.
 
+A first visit opens in the theatre with the bar held on screen; after that the app reopens in whichever room you left.
+
 ## Playing
 - **Surprise me** (or `p`, or Surprise on the phone bar) composes a pattern for you: a random family (harmonograph,
   Lissajous, rosette, spirograph, rake, ribbon, splatter) with random colours, periods and release moment, and shows
