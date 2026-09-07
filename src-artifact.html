@@ -483,6 +483,14 @@ function render(){
     }
   }
   drawCan(cp[0],cp[1]);
+  if(after){ const age=performance.now()-after.t0; if(age>3500) after=null; else {
+    const d=after.d, fade=age<2500?1:1-(age-2500)/1000; ctx.save(); ctx.globalAlpha=fade; ctx.lineCap='round';
+    ctx.font='700 13px '+getComputedStyle(document.body).getPropertyValue('--display'); ctx.fillStyle='#f1ece2'; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=6;
+    const cp0=after.cp, vv=toBoard(d.cvx,d.cvy), v0=toBoard(0,0), vx=(vv[0]-v0[0])*0.28*ppm, vy=(vv[1]-v0[1])*0.28*ppm, L=Math.hypot(vx,vy);
+    ctx.strokeStyle='rgba(241,236,226,.6)'; ctx.lineWidth=2; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.arc(cp0[0],cp0[1],26,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+    if(L>1){ const ux=vx/L,uy=vy/L,ex=cp0[0]+vx,ey=cp0[1]+vy; ctx.strokeStyle='#e6cb94'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cp0[0],cp0[1]); ctx.lineTo(ex,ey); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12-uy*7,ey-uy*12+ux*7); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12+uy*7,ey-uy*12-ux*7); ctx.stroke(); }
+    ctx.fillText('released here, flicked this way',cp0[0],cp0[1]-36); ctx.restore(); } }
   if(demo){
     const el=performance.now()-demo.t0, pulling=el<demo.dur;
     ctx.save(); ctx.lineCap='round';
@@ -494,8 +502,8 @@ function render(){
       ctx.strokeStyle='#e6cb94'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(ex,ey); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12-uy*7,ey-uy*12+ux*7); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12+uy*7,ey-uy*12-ux*7); ctx.stroke();
       ctx.fillText(label,ex+ux*16,ey+uy*16+5); };
-    if(pulling) ctx.fillText('pull…',cp[0],cp[1]-36);
-    else { ctx.fillText('flick and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],'');
+    if(pulling) ctx.fillText('pulling the can out…',cp[0],cp[1]-36);
+    else { ctx.fillText('now flick it this way and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],'');
       if(Math.hypot(demo.bvx,demo.bvy)>1e-3){ const hr=pushRect(); const bx=hr.x+hr.w/2, by=hr.y+hr.h/2; const bb=scr(toBoard(demo.bvx,demo.bvy)), b0=scr(toBoard(0,0)); arrow(bx+pan.x*0,by,(bb[0]-b0[0])/ppm,(bb[1]-b0[1])/ppm,'board push'); } }
     ctx.restore();
   }
@@ -556,7 +564,7 @@ view.addEventListener('pointerdown',e=>{
   if(e.button!==undefined&&e.button!==0) return;
   if(panning) return;
   if(phone()&&!tray.classList.contains('hidden')) setTray(false);
-  if(demo){ demo=null; stopCan(); }
+  if(demo){ demo=null; stopCan(); } after=null;
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
@@ -617,18 +625,18 @@ function launch(){
   if(!showRig) setRig(true); $('#hint').classList.add('gone');
 }
 /* drive the rig: place the can (metres from the pivot's rest point) and the board pendulum, give each a velocity, go */
-let demo=null;
+let demo=null, after=null;   // `after`: the launch arrow lingers on the board for a few seconds after release
 function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   cancelGrab(); stopCan();
   const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
-  demo={t0:performance.now(),dur:1100,hold:700,cx,cy,cvx,cvy,bx,by,bvx,bvy};
-  toast('Watch: pull the can out, flick it along the arrow, let go');
+  demo={t0:performance.now(),dur:2000,hold:2200,cx,cy,cvx,cvy,bx,by,bvx,bvy};
+  toast('Watch: the can is pulled out, then flicked along the arrow and let go',demo.dur+demo.hold+3500);
 }
 function demoStep(){
   if(!demo) return;
   const el=performance.now()-demo.t0, p=Math.min(1,el/demo.dur), e=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
   const x=demo.cx*e,y=demo.cy*e; can.p=[x,y,Math.sqrt(Math.max(0,P.L*P.L-x*x-y*y))]; can.v=[0,0,0];
-  if(el>=demo.dur+demo.hold){ const d=demo; demo=null; driveNow(d.cx,d.cy,d.cvx,d.cvy,d.bx,d.by,d.bvx,d.bvy); }
+  if(el>=demo.dur+demo.hold){ const d=demo; demo=null; after={t0:performance.now(),d,cp:scr(toBoard(d.cx,d.cy))}; driveNow(d.cx,d.cy,d.cvx,d.cvy,d.bx,d.by,d.bvx,d.bvy); }
 }
 function driveNow(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   const r=Math.hypot(cx,cy), rmax=0.86*P.L; if(r>rmax){cx*=rmax/r;cy*=rmax/r}
@@ -759,7 +767,7 @@ async function save(){
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Paint Pendulum'});return}catch(e){}}
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
 }
-function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),2400)}
+function toast(t,ms=2400){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),ms)}
 function fullscreen(){const d=document;if(d.fullscreenElement){d.exitFullscreen()}else if(d.documentElement.requestFullscreen){d.documentElement.requestFullscreen().catch(()=>{})}}
 
 /* tray */
