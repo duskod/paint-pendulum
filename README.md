@@ -5,6 +5,13 @@ A paint can on a string. **https://pendulum.clockerly.com**
 Pull the can, let go, and paint spirals across the board as the pendulum swings, precesses and dies
 down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loops never quite repeat.
 
+## Two rooms
+**Theatre** (the highlighted button, `t`, or Theatre on the phone bar): sit back and watch. Patterns compose
+themselves one after another on a board held still on screen, full screen where the browser allows, nothing else
+on show. Move the mouse or touch for the bar: Next (`n`, `→`), Pause (`p`), Save, Studio (`Esc`).
+
+**Studio**: everything below.
+
 ## Playing
 - **Surprise me** (or `p`, or Surprise on the phone bar) composes a pattern for you: a random family (harmonograph,
   Lissajous, rosette, spirograph, rake, ribbon, splatter) with random colours, periods and release moment, and shows

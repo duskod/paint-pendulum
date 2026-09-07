@@ -113,6 +113,13 @@
   #recipe li::marker{color:var(--muted)}
   #recipe .k{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:0 5px;color:var(--ink);white-space:nowrap}
   @media (max-width:720px){ #recipe{top:auto;bottom:calc(64px + env(safe-area-inset-bottom));left:8px;width:calc(100vw - 16px);max-height:40vh;overflow:auto;font-size:12px} }
+  #theatreBar{display:none;position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);align-items:center;gap:8px;padding:8px 12px;background:rgba(24,20,16,.92);border:1px solid var(--tray-edge);border-radius:999px;z-index:4;transition:opacity .4s;box-shadow:0 12px 36px rgba(0,0,0,.5);max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
+  #theatreBar #theatreTitle{font:600 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 6px}
+  body.theatre #theatreBar{display:flex}
+  body.theatre.still #theatreBar{opacity:0;pointer-events:none}
+  body.theatre .hud,body.theatre #tray,body.theatre #tab,body.theatre #quick,body.theatre #recipe,body.theatre #hint{display:none!important}
+  body.theatre #view{cursor:default}
+  body.theatre.still #view{cursor:none}
   #helpWrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:5;padding:14px}
   #helpBox{background:rgba(24,20,16,.97);border:1px solid var(--tray-edge);border-radius:14px;padding:16px 20px 18px;max-width:760px;width:100%;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
   #helpBox header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -175,7 +182,8 @@
       <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span>
     </div>
     <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option><option value="pen">Pen (thin line)</option><option value="marbled">Marbled stream</option></select></label>
-    <button class="b primary" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
+    <button class="b primary" id="theatreBtn" title="Sit back: patterns compose themselves on a still board, full screen, nothing else on show (t)">Theatre</button>
+    <button class="b" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
     <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
     <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
     <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
@@ -214,7 +222,7 @@
   <button class="q" id="qUndo" disabled>Undo</button>
   <button class="q" id="qPlay">Surprise</button>
   <button class="q" id="qSave">Save</button>
-  <button class="q on" id="qView">View</button>
+  <button class="q on" id="qTheatre">Theatre</button>
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
@@ -222,6 +230,14 @@
   <header><b id="recipeTitle"></b><button class="b sm" id="recipeClose">Close</button></header>
   <ol id="recipeSteps"></ol>
 </aside>
+<nav id="theatreBar" aria-label="Theatre controls">
+  <span id="theatreTitle"></span>
+  <button class="b" id="thNext">Next</button>
+  <button class="b" id="thPause">Pause</button>
+  <button class="b" id="thSave">Save</button>
+  <button class="b" id="thFull">Full screen</button>
+  <button class="b primary" id="thStudio">Studio</button>
+</nav>
 <div id="helpWrap" hidden>
   <section id="helpBox" role="dialog" aria-labelledby="helpTitle">
     <header><h2 id="helpTitle">Controls</h2><button class="b sm" id="helpClose">Close</button></header>
@@ -241,6 +257,7 @@
           <dt>Movie mode</dt><dd>on by default: five seconds after a pattern starts with nothing touched, the same happens by itself; move the mouse, touch or press a key to come back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Theatre</dt><dd>sit back: patterns compose themselves on a board held still, full screen, nothing else on show. Move for the bar: Next, Pause, Save, Studio. Keys there: <kbd>n</kbd> or <kbd>→</kbd> next, <kbd>p</kbd> pause, <kbd>Esc</kbd> back to the studio</dd>
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
@@ -260,6 +277,7 @@
           <dt><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dt><dd>pan the view (Shift for big steps)</dd>
           <dt><kbd>0</kbd></dt><dd>recentre the view</dd>
           <dt><kbd>Esc</kbd></dt><dd>cancel a pull, close a prompt</dd>
+          <dt><kbd>t</kbd></dt><dd>theatre</dd>
           <dt><kbd>p</kbd></dt><dd>surprise me</dd>
           <dt><kbd>a</kbd></dt><dd>auto-play on or off</dd>
           <dt><kbd>?</kbd></dt><dd>this list</dd>
@@ -482,17 +500,19 @@ function render(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.drawImage(table,0,0,W,H);
   boardPx();
-  ctx.save(); ctx.translate(pan.x,pan.y);   // view pan
-  ctx.save(); boardTransform(ctx);
+  ctx.save();
+  if(theatre) ctx.translate(-(Bm.x+Bm.w/2)*ppm,-(Bm.y+Bm.h/2)*ppm);   // theatre: the board held still, centred, whatever it does
+  else ctx.translate(pan.x,pan.y);   // view pan
+  ctx.save(); if(!theatre) boardTransform(ctx);
   ctx.save(); ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=28; ctx.shadowOffsetY=12; ctx.fillStyle=boardCol; rr(ctx,B.x,B.y,B.w,B.h,5); ctx.fill(); ctx.restore();
   ctx.save(); rr(ctx,B.x,B.y,B.w,B.h,5); ctx.clip();
   { const [ax,ay]=apx(), pw=paint.width/dpr, ph=paint.height/dpr;
     if(hl&&swings.includes(hl)){ ctx.globalAlpha=0.18; ctx.drawImage(paint,ax,ay,pw,ph); ctx.globalAlpha=1; drawSwing(ctx,hl); }
     else ctx.drawImage(paint,ax,ay,pw,ph); }
   ctx.restore();
-  rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke();
+  if(!theatre){ rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke(); }
   // carrying handle on the top edge: drag it to move the board
-  if(showRig){ const hr=handleRect(), lit=hover==='move'||resizing==='move';
+  if(showRig&&!theatre){ const hr=handleRect(), lit=hover==='move'||resizing==='move';
     ctx.fillStyle=lit?'#e6cb94':'#b08d57'; rr(ctx,hr.x,hr.y,hr.w,hr.h,10); ctx.fill();
     ctx.fillStyle='rgba(0,0,0,.45)'; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.arc(hr.x+hr.w/2+i*7,hr.y+hr.h/2,1.4,0,TAU); ctx.fill(); }
     // steel handle on the bottom edge: pull the board out and let go, it swings as the second pendulum
@@ -501,14 +521,14 @@ function render(){
     ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pr.x+pr.w/2,pr.y+pr.h/2,5,0,TAU); ctx.stroke(); }
   // corner ticks so the edges read as handles
   ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=2; const L=12;
-  if(!viewing) for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
+  if(!viewing&&!theatre) for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
     ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke();
   }
   if(resizing&&resizing!=='move'){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
     ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-24>20?B.y-24:B.y+B.h+18); }
   ctx.restore();
 
-  if(!showRig){ ctx.restore(); return; }   // end view pan; painting only
+  if(!showRig||theatre){ ctx.restore(); return; }   // painting only
   const tf=Math.sqrt(2*P.h/G);
   const pv=scr(toBoard(0,0)), cp=scr(toBoard(can.p[0],can.p[1]));
   const lp=scr(toBoard(can.p[0]+can.v[0]*tf,can.p[1]+can.v[1]*tf));
@@ -612,6 +632,7 @@ function placeCan(q){
 let panning=null; const touches=new Map();
 view.addEventListener('contextmenu',e=>e.preventDefault());
 view.addEventListener('pointerdown',e=>{
+  if(theatre){ wake(); e.preventDefault(); return; }
   if(viewing){ setViewing(false); e.preventDefault(); return; }
   if(e.pointerType==='touch'){ touches.set(e.pointerId,[e.clientX,e.clientY]);
     if(touches.size===2){ // second finger: pan the view instead of whatever the first finger started
@@ -636,6 +657,7 @@ view.addEventListener('pointerdown',e=>{
   $('#hint').classList.add('gone');
 });
 view.addEventListener('pointermove',e=>{
+  if(theatre) return;
   if(panning){ if(panning.id===e.pointerId){ pan.x+=e.clientX-panning.x; pan.y+=e.clientY-panning.y; panning.x=e.clientX; panning.y=e.clientY; } return; }
   if(resizing){ const [sx,sy]=ptrPx(e); applyResize(resizing,sx,sy); return; }
   if(pivotDrag){ if(pivotDrag.id!==e.pointerId) return;
@@ -843,14 +865,15 @@ function surprise(){
   const title={harmonograph:'Harmonograph',lissajous:'Lissajous',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter'}[fam]+' #'+(++surpriseCount);
   $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
-  $('#recipe').hidden=autoplay||phone(); toast(title+(autoplay?' · auto-play':''),3000);
+  $('#recipe').hidden=autoplay||phone()||theatre; $('#theatreTitle').textContent=title; if(!theatre) toast(title+(autoplay?' · auto-play':''),3000);
   if(phone()) setTray(false);
 }
 /* auto-play: when a pattern has died down (or after 80 s), pause, then the next one, on a fresh board most of the time */
 function autoTick(){
   if(!autoplay) return;
   const died=!running&&!demo, old=T>80;
-  if(died||old){ clearTimeout(autoT); autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },died?3500:0); autoplay='waiting'; }
+  if(paused) return;
+  if(died||old){ clearTimeout(autoT); autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(theatre||Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },died?3500:0); autoplay='waiting'; }
 }
 function setAutoplay(on){ if(!on) clearTimeout(autoT); autoplay=on; $('#autoplay').checked=!!on; $('#qPlay').classList.toggle('on',!!on); clearTimeout(autoT); if(on&&!running) surprise(); }
 $('#surprise').addEventListener('click',surprise);
@@ -1000,6 +1023,25 @@ function setViewing(on,auto=false){
   if(on){ rigBefore=showRig; setRig(false); if(!auto) toast('Tap the picture or press any key to come back',3000); }
   else { setRig(rigBefore); }
 }
+/* theatre: sit back and watch. Patterns compose themselves (auto-play), the board is held still on screen,
+   the rig and every control are gone; a bar appears on movement with Next, Pause, Save, Studio */
+let theatre=false, paused=false, stillT=null;
+function setTheatre(on){
+  if(on===theatre) return; theatre=on; document.body.classList.toggle('theatre',on);
+  if(on){ if(viewing) setViewing(false); setTray(false); $('#recipe').hidden=true; $('#helpWrap').hidden=true; paused=false; $('#thPause').textContent='Pause';
+    if(document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
+    if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
+    wake(); }
+  else { document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
+}
+function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
+function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
+$('#theatreBtn').addEventListener('click',()=>setTheatre(true)); $('#qTheatre').addEventListener('click',()=>setTheatre(true));
+$('#thNext').addEventListener('click',theatreNext); $('#thStudio').addEventListener('click',()=>setTheatre(false));
+$('#thPause').addEventListener('click',()=>{ paused=!paused; $('#thPause').textContent=paused?'Play':'Pause'; });
+$('#thSave').addEventListener('click',save); $('#thFull').addEventListener('click',fullscreen);
+addEventListener('pointermove',wake,{passive:true}); addEventListener('pointerdown',wake,{passive:true,capture:true});
 /* movie mode: with a pattern running and nothing touched for a few seconds, slip into view mode on its own;
    any movement, touch or key brings everything back, and it drifts away again if left alone */
 let movie=true; try{ if(localStorage.getItem('pp-movie')==='0') movie=false; }catch(e){}
@@ -1011,10 +1053,11 @@ addEventListener('pointerdown',()=>{ lastActivity=performance.now(); },{passive:
 addEventListener('wheel',activity,{passive:true});
 $('#tray').addEventListener('pointerenter',()=>overTray=true); $('#tray').addEventListener('pointerleave',()=>overTray=false);
 function movieTick(){
+  if(theatre) return;
   if(!movie||viewing||!running||demo||grabbed||bgrab||resizing||panning||armed>=0||overTray||!$('#helpWrap').hidden) return;
   if(performance.now()-lastActivity>5000) setViewing(true,true);
 }
-$('#viewBtn').addEventListener('click',()=>setViewing(true)); $('#qView').addEventListener('click',()=>setViewing(true));
+$('#viewBtn').addEventListener('click',()=>setViewing(true));
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
 $('#help').addEventListener('click',()=>showHelp(true)); $('#helpClose').addEventListener('click',()=>showHelp(false));
 $('#helpWrap').addEventListener('click',e=>{ if(e.target.id==='helpWrap') showHelp(false); });
@@ -1058,12 +1101,14 @@ $('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('c
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
   lastActivity=performance.now();
+  if(theatre){ wake(); if(e.key==='Escape'){setTheatre(false)} else if(e.key==='n'||e.key==='ArrowRight'||e.key===' '){e.preventDefault();theatreNext()} else if(e.key==='f'){fullscreen()} else if(e.key==='s'){save()} else if(e.key==='p'){$('#thPause').click()} return; }
   if(viewing){ setViewing(false); e.preventDefault(); return; }
   if(e.target.tagName==='INPUT') return;
   if(e.key==='Escape'){ if(!$('#helpWrap').hidden){showHelp(false);return} if(armed>=0)disarm();cancelGrab();return}
   if(e.key==='?'){showHelp($('#helpWrap').hidden);return}
   if(e.key==='v'){setViewing(true);return}
   if(e.key==='p'){surprise();return}
+  if(e.key==='t'){setTheatre(true);return}
   if(e.key==='a'){setAutoplay(!autoplay);return}
   if(e.key==='r'){setRig(!showRig);return}
   if(e.key.startsWith('Arrow')){ const d=e.shiftKey?120:40; if(e.key==='ArrowLeft')pan.x-=d; else if(e.key==='ArrowRight')pan.x+=d; else if(e.key==='ArrowUp')pan.y-=d; else pan.y+=d; savePan(); e.preventDefault(); return; }
@@ -1077,7 +1122,7 @@ let last=performance.now(),acc=0,uiT=0;
 function frame(now){
   const el=Math.min(0.05,(now-last)/1000); last=now; acc+=el;
   boardPx(); { const [ax,ay]=apx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x-ax,B.y-ay,B.w,B.h); pctx.clip(); }
-  let n=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
+  let n=0; if(paused) acc=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
   render();
   uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
