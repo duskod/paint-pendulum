@@ -8,8 +8,12 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 ## Playing
 - **Pull the can and let go.** The speed and direction you release it with set the swing. `Esc` cancels a pull.
 - **Tap the board** (or press **Catch** / `space`) to catch it. **Undo** reverses the last launch, removal or clear.
-- **Nozzle**: a two-tone ribbon, a single colour, or a bar of 3 to 6 holes in a line that leaves
-  parallel trails. **Gap** sets the hole spacing, **Twist** how fast the can (and bar) turns.
+- **Nozzle**: a two-tone ribbon, a single colour, a bar of 3 to 6 holes in a line that leaves parallel
+  trails, a **pen** (thin uniform line, never pools) or a **marbled** stream that changes colour as it pours.
+  **Gap** sets the hole spacing, **Twist** how fast the can (and bar) turns. **Splat** flings droplets off the stream.
+- **Example** menu: pick one and watch a ghost hand pull the can and flick it, then the pattern draws itself.
+  Harmonograph (the classic two-lobe print: pen on the can, board swinging at a slightly different period),
+  Rosette, Lissajous 2:3, Splatter can, Six-colour rake.
 - **Sway** hangs the board on its own strings so it swings too, like a harmonograph. **Turn** spins it.
 - **Flow** and **String** set the line weight and the period; **Air** how fast the swing dies.
 - The board's edges drag to resize it. The brass handle on its top edge moves the board under the pendulum, paint and all (Shift-drag on the board does the same). Paint only lands on the board. **Fit board** restores it.

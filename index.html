@@ -156,7 +156,8 @@
     <div class="group"><span class="lbl">Desk</span><div class="chips" id="tables"></div>
       <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span>
     </div>
-    <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option></select></label>
+    <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option><option value="pen">Pen (thin line)</option><option value="marbled">Marbled stream</option></select></label>
+    <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
   </div>
   <div class="row" id="swingRow" hidden><span class="lbl">Swings</span><div class="chips" id="swingChips"></div><span class="lbl" id="swingHint" style="letter-spacing:.04em;text-transform:none">hover to see one, click to recolour or remove it</span>
@@ -171,6 +172,7 @@
     <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="-3" max="3" step="0.1" value="0"><output>0</output></label>
     <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
     <label class="sl">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
+    <label class="sl" title="Paint flung off the stream: droplets around the line, blobs where it slows">Splat <input type="range" id="splat" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <div class="btns">
       <button class="b" id="catch">Catch</button>
       <button class="b" id="undo" disabled title="Undo the last launch, removal or clear">Undo</button>
@@ -264,9 +266,10 @@ PAIRS.push(CUSTOM);
 const TABLES=[['Oak','#8b6541','#66452a','wood'],['Walnut','#4b2f1f','#2c1a10','wood'],['Ash','#d9c3a2','#b6976f','wood'],['Concrete','#7f8183','#5c5e60','stone'],['Slate','#2e3236','#1c1f22','stone'],['Custom','#3b4a5a','#3b4a5a','flat']];
 let tableSel=0; try{const t=JSON.parse(localStorage.getItem('pp-table')||'null'); if(t&&Number.isInteger(t.i)&&TABLES[t.i]){tableSel=t.i; if(isHex(t.c)){TABLES[5][1]=TABLES[5][2]=t.c}}}catch(e){}
 function remember(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-const P={L:1.6,damp:0.06,flow:2,h:0.08,swing:0,L2:1.05,damp2:0.18,rpm:0,twist:0.15,mode:'ribbon',gap:0.02,auto:true};
+const P={L:1.6,damp:0.06,flow:2,h:0.08,swing:0,L2:1.05,damp2:0.18,rpm:0,twist:0.15,mode:'ribbon',gap:0.02,auto:true,splat:0};
 let cols=PAIRS[0].slice(1), boardCol=BOARDS[0][1];
-const nozzles=()=>P.mode==='ribbon'||P.mode==='solid'?1:+P.mode;
+const nozzles=()=>(P.mode==='ribbon'||P.mode==='solid'||P.mode==='pen'||P.mode==='marbled')?1:+P.mode;
+const colourCount=m=>m==='solid'||m==='pen'?1:m==='ribbon'?2:m==='marbled'?6:+m;
 const can={p:[0,0,P.L],v:[0,0,0]}, bd={p:[0,0,P.L2],v:[0,0,0],ang:0};
 let flowing=false, running=false, grabbed=false, level=1, T=0, angAcc=0, lastAng=null, qprev=null, sprev=[], nprev=[1,0], stillFor=0, wcur=-1, twA=0;
 /* the can's rotation (ribbon split / nozzle bar): idles slowly at rest so you can pick an angle, holds while
@@ -338,12 +341,27 @@ function dab(x,y,r,k){
   pctx.fillStyle=cur.cols[k]; pctx.beginPath(); pctx.arc(x-ax,y-ay,r,0,TAU); pctx.fill();
   cur.pts.push((x-W/2)/ppm,(y-H/2)/ppm,r/ppm,k);
 }
+let curSpeed=0, marbK=0, marbT=0;
 function stamp(x,y,w,nx,ny,k){
   if(!cur) return;
   if(P.mode==='ribbon'){
     const a=twA,c=Math.cos(a),s=Math.sin(a),rx=nx*c-ny*s,ry=nx*s+ny*c;
     dab(x-rx*0.25*w,y-ry*0.25*w,0.5*w,0); dab(x+rx*0.35*w,y+ry*0.35*w,0.42*w,1);
-  }else dab(x,y,0.55*w,k);
+  }else if(P.mode==='marbled') dab(x,y,0.55*w,marbK);
+  else dab(x,y,0.55*w,k);
+  if(P.splat>0&&P.mode!=='pen') splatter(x,y,w,nx,ny,P.mode==='marbled'?marbK:P.mode==='ribbon'?(Math.random()<0.5?0:1):k);
+}
+/* paint flung off the stream: fine droplets scattered wider the faster the can moves, blobs where it dawdles */
+function splatter(x,y,w,nx,ny,k){
+  const sp=curSpeed, fast=Math.min(1,sp/1.4);
+  if(Math.random()<P.splat*(0.06+0.5*fast)){
+    const ang=Math.random()*TAU, d=w*(0.8+Math.random()*3.5)+fast*ppm*0.06*Math.random();
+    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,Math.max(0.7,w*(0.12+Math.random()*0.45)),k);
+  }
+  if(sp<0.2&&Math.random()<P.splat*0.02){
+    const ang=Math.random()*TAU, d=w*(0.3+Math.random()*1.2);
+    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,w*(0.5+Math.random()*0.7),k);
+  }
 }
 function drawSwing(c,sw,alpha,ox=0,oy=0){
   const p=sw.pts; if(!p.length) return; c.globalAlpha=alpha===undefined?1:alpha;
@@ -385,8 +403,9 @@ function stampRun(k,px,py,w){
 }
 function step(dt){
   turnCan(dt);
+  if(demo){ demoStep(); return; }
   if(grabbed) return;
-  if(running){ stepPend(can,P.L,P.damp,dt); if(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4) stepPend(bd,P.L2,P.damp2,dt); }
+  if(running){ stepPend(can,P.L,P.damp,dt); if(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4) stepPend(bd,P.L2,P.damp2,dt); }
   bd.ang+=P.rpm*TAU/60*dt;
   if(!running) return;
   T+=dt;
@@ -397,12 +416,14 @@ function step(dt){
     if(sp>0.02) nprev=[-vy/sp,vx/sp];
     if(flowing){
       const qf=P.flow*1e-6*(0.3+0.7*level);
-      level=Math.max(0,level-qf*dt/V0);
+      if(P.mode!=='pen') level=Math.max(0,level-qf*dt/V0);
       // line width = paint per metre of travel; a slowing can pools, but paint spreads at a finite rate, so
       // the width chases its target instead of jumping to a disc at each turning point
-      const wt=Math.min(0.028,Math.max(0.0012,qf/FILM/Math.max(sp,0.08)));
+      let wt=Math.min(0.028,Math.max(0.0012,qf/FILM/Math.max(sp,0.08)));
+      if(P.mode==='pen') wt=0.0016;                       // a pen: same thin line at any speed, never pools
       if(wcur<0) wcur=wt; const rate=0.05*dt; wcur+=Math.max(-rate*2,Math.min(rate,wt-wcur));
-      const w=wcur*ppm, n=nozzles();
+      const w=Math.max(1.2,wcur*ppm), n=nozzles(); curSpeed=sp;
+      if(P.mode==='marbled'){ marbT-=dt; if(marbT<=0){ marbK=Math.floor(Math.random()*6); marbT=0.12+Math.random()*0.8; } }
       if(n===1){ const [px,py]=bpx(q); stampRun(0,px,py,w); }
       else for(let k=0;k<n;k++){
         const o=nozzleOffset(k), qk=toBoard(can.p[0]+can.v[0]*tf+o[0],can.p[1]+can.v[1]*tf+o[1]);
@@ -466,13 +487,29 @@ function render(){
     }
   }
   drawCan(cp[0],cp[1]);
+  if(demo){
+    const el=performance.now()-demo.t0, pulling=el<demo.dur;
+    ctx.save(); ctx.lineCap='round';
+    // fingertip on the can
+    ctx.strokeStyle='rgba(241,236,226,.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.stroke();
+    ctx.fillStyle='rgba(241,236,226,.18)'; ctx.beginPath(); ctx.arc(cp[0],cp[1],26,0,TAU); ctx.fill();
+    ctx.font='700 13px '+getComputedStyle(document.body).getPropertyValue('--display'); ctx.fillStyle='#f1ece2'; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=6;
+    const arrow=(x0,y0,vx,vy,label)=>{ const L=Math.hypot(vx,vy); if(L<1e-3) return; const sc=0.28*ppm, ex=x0+vx*sc, ey=y0+vy*sc, ux=vx/L, uy=vy/L;
+      ctx.strokeStyle='#e6cb94'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(ex,ey); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12-uy*7,ey-uy*12+ux*7); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12+uy*7,ey-uy*12-ux*7); ctx.stroke();
+      ctx.fillText(label,ex+ux*16,ey+uy*16+5); };
+    if(pulling) ctx.fillText('pull…',cp[0],cp[1]-36);
+    else { ctx.fillText('flick and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],'');
+      if(Math.hypot(demo.bvx,demo.bvy)>1e-3){ const hr=handleRect(); const bx=B.x+B.w/2, by=hr.y+hr.h/2; const bb=scr(toBoard(demo.bvx,demo.bvy)), b0=scr(toBoard(0,0)); arrow(bx+pan.x*0,by,(bb[0]-b0[0])/ppm,(bb[1]-b0[1])/ppm,'board push'); } }
+    ctx.restore();
+  }
   ctx.restore();   // end view pan
 }
 function drawCan(x,y){
   const r=Math.min(W,H)<600?14:17, a=twA;
   ctx.save(); ctx.translate(x,y);
   ctx.fillStyle='#1c1917'; ctx.beginPath(); ctx.arc(0,0,r+3,0,TAU); ctx.fill();
-  const segs=P.mode==='solid'?1:P.mode==='ribbon'?2:nozzles();
+  const segs=colourCount(P.mode);
   for(let k=0;k<segs;k++){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,r,a+k*TAU/segs,a+(k+1)*TAU/segs); ctx.closePath(); ctx.fill(); }
   ctx.lineWidth=3; ctx.strokeStyle='#c9c2b6'; ctx.beginPath(); ctx.arc(0,0,r+1.5,0,TAU); ctx.stroke();
   ctx.lineWidth=1; ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(0,0,r+3,-2.4,-0.9); ctx.stroke();
@@ -521,6 +558,7 @@ view.addEventListener('pointerdown',e=>{
   if(e.button!==undefined&&e.button!==0) return;
   if(panning) return;
   if(phone()&&!tray.classList.contains('hidden')) setTray(false);
+  if(demo){ demo=null; stopCan(); }
   view.setPointerCapture(e.pointerId);
   const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
@@ -556,13 +594,63 @@ function release(e){
   const vz=p[2]>1e-3?-(vp[0]*p[0]+vp[1]*p[1])/p[2]:0;
   can.v=[vp[0],vp[1],vz];
   if(P.swing>0){const th=Math.random()*TAU,s=P.swing*0.5;bd.v=[Math.cos(th)*s,Math.sin(th)*s,0]}
+  launch();
+}
+function launch(){
   remember_state();
   cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
   running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
+  if(!showRig) setRig(true); $('#hint').classList.add('gone');
 }
+/* drive the rig: place the can (metres from the pivot's rest point) and the board pendulum, give each a velocity, go */
+let demo=null;
+function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
+  cancelGrab(); stopCan();
+  const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
+  demo={t0:performance.now(),dur:1100,hold:700,cx,cy,cvx,cvy,bx,by,bvx,bvy};
+  toast('Watch: pull the can out, flick it along the arrow, let go');
+}
+function demoStep(){
+  if(!demo) return;
+  const el=performance.now()-demo.t0, p=Math.min(1,el/demo.dur), e=p<0.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  const x=demo.cx*e,y=demo.cy*e; can.p=[x,y,Math.sqrt(Math.max(0,P.L*P.L-x*x-y*y))]; can.v=[0,0,0];
+  if(el>=demo.dur+demo.hold){ const d=demo; demo=null; driveNow(d.cx,d.cy,d.cvx,d.cvy,d.bx,d.by,d.bvx,d.bvy); }
+}
+function driveNow(cx,cy,cvx,cvy,bx,by,bvx,bvy){
+  const r=Math.hypot(cx,cy), rmax=0.86*P.L; if(r>rmax){cx*=rmax/r;cy*=rmax/r}
+  const cz=Math.sqrt(Math.max(0,P.L*P.L-cx*cx-cy*cy)); const cvz=cz>1e-3?-(cvx*cx+cvy*cy)/cz:0;
+  can.p=[cx,cy,cz]; can.v=[cvx,cvy,cvz];
+  const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); const bvz=bz>1e-3?-(bvx*bx+bvy*by)/bz:0;
+  bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bvz];
+  launch();
+}
+function setSlider(id,v){ const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('input')); }
+function setMode(m){ $('#mode').value=m; $('#mode').dispatchEvent(new Event('change')); }
+function pickPalette(i){ const b=$('#pairs').children[i]; if(b) b.click(); }
+function setBoardColour(hex){ boardSel=4; boardCol=BOARDS[4][1]=hex; $('#boardPick').value=hex; [...$('#boards').children].forEach((c,j)=>c.classList.toggle('on',j===4)); $('#customBoard').hidden=false; }
+const PRESETS={
+  harmonograph(){ // pen on the can swinging along x, board swinging along y at a slightly faster period: the two beat
+    setMode('pen'); setBoardColour('#1f4e9c'); cols=['#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',1.6); setSlider('damp',0.018); setSlider('twist',0); setSlider('rpm',0); P.L2=1.54; P.damp2=0.014;
+    const A=0.34, w2=Math.sqrt(G/P.L2);
+    drive(0.42,0.03,0,0.05, 0,0,0,A*w2);
+  },
+  rosette(){ setMode('pen'); setBoardColour('#14161a'); pickPalette(1); setSlider('L',1.6); setSlider('damp',0.02); setSlider('twist',0); setSlider('rpm',0); P.damp2=0.2;
+    drive(0.44,0,0,0.62, 0,0,0,0); },
+  lissajous(){ // board pendulum at (2/3)^2 of the can's length: periods 2:3
+    setMode('pen'); setBoardColour('#f1ede4'); cols=['#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',1.8); setSlider('damp',0.02); setSlider('twist',0); setSlider('rpm',0); P.L2=1.8*4/9; P.damp2=0.02;
+    const A=0.3, w2=Math.sqrt(G/P.L2);
+    drive(0.4,0,0,0.05, 0,0,0,A*w2); },
+  splatter(){ setMode('marbled'); setBoardColour('#efe6d3'); pickPalette(2); setSlider('flow',6.5); setSlider('splat',0.85); setSlider('L',1.4); setSlider('damp',0.09); setSlider('twist',0); setSlider('rpm',0);
+    drive(0.38,-0.12,0.9,1.3, 0,0,0,0); },
+  rake(){ setMode('6'); setBoardColour('#0c0c0e'); pickPalette(0); setSlider('flow',2); setSlider('splat',0); setSlider('L',1.6); setSlider('damp',0.05); setSlider('twist',0.03); setSlider('gap',2.2); setSlider('rpm',0);
+    drive(0.4,-0.05,0.15,0.7, 0,0,0,0); },
+};
+$('#preset').addEventListener('change',e=>{ const f=PRESETS[e.target.value]; e.target.value=''; if(f){ f(); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
-function catchCan(){grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
+function catchCan(){demo=null;grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
 function clearBoard(){ if(!swings.length) return; remember_state(); stopCan(); swings=[]; cur=null; rebuild(); listSwings(); angAcc=0; T=0; }
 /* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
 const history=[];
@@ -576,7 +664,7 @@ function undoLast(){
 /* clicking a swing chip opens its editor: the chip arms, the swing stays highlighted, and you can give it
    another palette (or custom colours), remove it (asked first), or close with Done / Esc */
 let armed=-1, editTouched=false;
-function swingColours(sw){ return sw.mode==='solid'?1:sw.mode==='ribbon'?2:+sw.mode; }
+function swingColours(sw){ return colourCount(sw.mode); }
 function askRemove(i){ openSwing(i); }
 function openSwing(i){ requestAnimationFrame(placeTray);
   armed=i; hl=swings[i]; editTouched=false;
@@ -651,7 +739,7 @@ function chipBg(it,nn){const n=Math.max(2,nn||nozzles()),c=it.slice(1,n+1);retur
 const customOn=()=>PAIRS[pairSel]===CUSTOM;
 function buildCustom(){
   const host=$('#customInputs'); host.innerHTML='';
-  const n=P.mode==='solid'?1:P.mode==='ribbon'?2:nozzles();
+  const n=colourCount(P.mode);
   for(let k=0;k<6;k++){ const i=document.createElement('input'); i.type='color'; i.value=CUSTOM[k+1]; i.setAttribute('aria-label','Colour '+(k+1));
     i.style.opacity=k<n?'1':'.4'; i.title=k<n?'Colour '+(k+1):'Colour '+(k+1)+' (used with more nozzles)';
     i.addEventListener('input',()=>{CUSTOM[k+1]=i.value;cols=CUSTOM.slice(1);remember('pp-custom',CUSTOM.slice(1))}); host.appendChild(i); }
@@ -678,7 +766,7 @@ $('#mode').addEventListener('change',e=>{
   else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
 });
 $('#auto').addEventListener('change',e=>P.auto=e.target.checked);
-for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpm',v=>v.toFixed(1)],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)]]){
+for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpm',v=>v.toFixed(1)],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)]]){
   const el=$('#'+id), out=el.nextElementSibling;
   el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else P[key]=+el.value;out.textContent=fmt(+el.value)});
 }
