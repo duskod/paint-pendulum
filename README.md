@@ -14,7 +14,10 @@ down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loop
 - **Example** menu: pick one and watch a ghost hand pull the can and flick it, then the pattern draws itself.
   Harmonograph (the classic two-lobe print: pen on the can, board swinging at a slightly different period),
   Rosette, Lissajous 2:3, Splatter can, Six-colour rake.
-- **Sway** hangs the board on its own strings so it swings too, like a harmonograph. **Turn** spins it.
+- The board hangs on its own strings as a second pendulum. Pull the **steel handle on its bottom edge** and let go
+  to swing it in any direction you like (straight down for a vertical sway); **Board str.** sets its period, so the
+  ratio to the can's **String** is yours to choose. **Sway** gives it a random push whenever you release the can.
+  **Turn** spins the board.
 - **Flow** and **String** set the line weight and the period; **Air** how fast the swing dies.
 - The board's edges drag to resize it. The brass handle on its top edge moves the board under the pendulum, paint and all (Shift-drag on the board does the same). Paint only lands on the board. **Fit board** restores it.
 - To slide the whole view instead (board, pivot and can together) drag with the right or middle mouse button, use two fingers on a phone, or the arrow keys; `0` recentres.
