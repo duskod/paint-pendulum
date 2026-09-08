@@ -699,7 +699,9 @@ function release(e){
   if(P.swing>0){const th=Math.random()*TAU,s=P.swing*0.5;bd.v=[Math.cos(th)*s,Math.sin(th)*s,0]}
   launch();
 }
+let handCounted=false;
 function launch(){
+  if(!demo&&!autoplay&&!handCounted){ handCounted=true; track('hand-swing'); }
   remember_state();
   cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
   running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
@@ -796,7 +798,7 @@ const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.len
 const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>>8)&255)+0.0722*(n&255))/255};
 let autoplay=false, autoT=null, surpriseCount=0;
 function surprise(){
-  cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT);
+  cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
   // the theatre wants the intricate two-pendulum figures; the studio button keeps a broader mix
   const fam=pick(theatre?['harmonograph','harmonograph','lissajous','lissajous','lissajous','twin','twin','lattice','lattice','rake']
                         :['harmonograph','lissajous','lissajous','twin','lattice','rosette','spiro','rake','ribbon','marbled']);
@@ -914,7 +916,7 @@ $('#surprise').addEventListener('click',surprise);
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
-$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ f(); showRecipe(k); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
@@ -981,7 +983,7 @@ function listSwings(keepEditor){ requestAnimationFrame(placeTray); $('#swingHint
 function boardBlob(type='image/png',q){ rebuild(); const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
   const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height); x.drawImage(paint,0,0);
   return new Promise(r=>c.toBlob(r,type,q)); }
-async function save(){ saveBlob(await boardBlob(),'paint-pendulum-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png'); }
+async function save(){ track('save'); saveBlob(await boardBlob(),'paint-pendulum-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png'); }
 async function saveBlob(blob,name){
   // inside the claude.ai viewer the page cannot download by itself; the viewer's download capability saves it
   const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
@@ -990,6 +992,9 @@ async function saveBlob(blob,name){
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Paint Pendulum'});return}catch(e){}}
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
 }
+/* usage counts: GoatCounter events (the beacon is only in the hosted page's head; no cookies, no identifiers) */
+function track(name){ try{ if(window.goatcounter&&goatcounter.count) goatcounter.count({path:'event/'+name,title:name,event:true}); }catch(e){} }
+window.addEventListener('appinstalled',()=>track('installed'));
 function toast(t,ms=2400){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),ms)}
 function fullscreen(){const d=document;if(d.fullscreenElement){d.exitFullscreen()}else if(d.documentElement.requestFullscreen){d.documentElement.requestFullscreen().catch(()=>{})}}
 
@@ -1073,7 +1078,7 @@ function setTheatre(on,opts={}){
     if(!opts.silent&&document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
     if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
-    holdAwake(true); wake(); }
+    holdAwake(true); wake(); track('theatre'); }
   else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
@@ -1113,7 +1118,7 @@ function openGalleryItem(it){ galSel=it; const u=URL.createObjectURL(it.full); g
 $('#gallery').addEventListener('click',()=>showGallery(true)); $('#thGallery').addEventListener('click',()=>{ wake(); showGallery(true); });
 $('#galleryClose').addEventListener('click',()=>showGallery(false)); $('#galleryBack').addEventListener('click',()=>{ $('#galleryView').hidden=true; $('#galleryGrid').hidden=false; });
 $('#galleryWrap').addEventListener('click',e=>{ if(e.target.id==='galleryWrap') showGallery(false); });
-$('#gallerySave').addEventListener('click',()=>{ if(galSel) saveBlob(galSel.full,'paint-pendulum-'+galSel.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png'); });
+$('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'); if(galSel) saveBlob(galSel.full,'paint-pendulum-'+galSel.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png'); });
 $('#galleryDelete').addEventListener('click',async()=>{ if(!galSel) return; await galDel(galSel.id); galSel=null; showGallery(true); });
 $('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; $('#recipeTitle').textContent='How to: '+galSel.title; $('#recipeSteps').innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; showGallery(false); if(theatre) setTheatre(false); $('#recipe').hidden=false; });
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
@@ -1192,7 +1197,8 @@ addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
 (function(){
   let seen=null,room=null; try{seen=localStorage.getItem('pp-seen'); room=localStorage.getItem('pp-room')}catch(e){}
   const q=new URLSearchParams(location.search);
-  if(q.has('theatre')){ try{localStorage.setItem('pp-seen','1')}catch(e){} setTheatre(true,{silent:true}); document.body.classList.add('still'); return; }
+  if(q.get('source')==='play') track('android-app');
+  if(q.has('theatre')){ try{localStorage.setItem('pp-seen','1')}catch(e){} setTheatre(true,{silent:true}); document.body.classList.add('still'); track('screensaver'); return; }
   if(!seen){ try{localStorage.setItem('pp-seen','1')}catch(e){}
     holdBar=performance.now()+20000;   // keep the bar in view through the first pattern, so the Studio is discoverable
     setTheatre(true,{silent:true}); wake();

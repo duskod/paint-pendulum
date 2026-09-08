@@ -40,6 +40,7 @@ out = f'''<!doctype html>
 <meta name="twitter:title" content="Paint Pendulum">
 <meta name="twitter:description" content="{desc}">
 <meta name="twitter:image" content="https://pendulum.clockerly.com/promo/og.png">
+<script data-goatcounter="https://pendulum.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 {head}{styles}
 <style>
   img{{max-width:100%}} [hidden]{{display:none!important}}
