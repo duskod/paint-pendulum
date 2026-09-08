@@ -1267,7 +1267,8 @@ async function showGallery(on){
   $('#galleryView').hidden=true; $('#galleryGrid').hidden=false;
   const items=await galAll(); GAL.items=items; const grid=$('#galleryGrid'); grid.innerHTML='';
   const bytes=items.reduce((a,it)=>a+((it.full&&it.full.size)||0)+((it.thumb&&it.thumb.size)||0),0), mb=bytes/1048576;
-  $('#galleryEmpty').hidden=items.length>0; $('#galleryCount').textContent=items.length?`${items.length} of ${GAL.max} kept \u00b7 ${mb<0.1?Math.round(bytes/1024)+' kB':mb.toFixed(1)+' MB'} on this device`:'';
+  const size=mb<0.1?Math.round(bytes/1024)+' kB':mb.toFixed(1)+' MB';
+  $('#galleryEmpty').hidden=items.length>0; $('#galleryCount').textContent=items.length?(innerWidth<720?`${items.length}/${GAL.max} \u00b7 ${size}`:`${items.length} of ${GAL.max} kept \u00b7 ${size} on this device`):'';
   $('#galleryClear').hidden=!items.length; $('#galleryClearAsk').hidden=true;
   for(const it of items){ const f=document.createElement('figure'); const im=document.createElement('img'); const u=URL.createObjectURL(it.thumb); galUrls.push(u); im.src=u; im.alt=it.title;
     const c=document.createElement('figcaption'); c.innerHTML=`<span>${it.title}</span><span>${new Date(it.id).toLocaleDateString()}</span>`; f.append(im,c);
@@ -1291,11 +1292,14 @@ $('#galleryImg').addEventListener('dblclick',()=>setGalFull(!galFull));
 document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement&&galFull&&galTookFS) setGalFull(false,true); });
 $('#galleryWrap').addEventListener('pointermove',()=>galWake(),{passive:true});
 $('#galPrev').addEventListener('click',()=>galStep(-1)); $('#galNext').addEventListener('click',()=>galStep(1));
-(function(){ const st=$('#galleryStage'); let sw=null;
+(function(){ const st=$('#galleryStage'); let sw=null, lastTap=null;
   st.addEventListener('pointerdown',e=>{ if(e.target.classList.contains('galArrow')) return; sw={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()}; });
   const end=e=>{ if(!sw||sw.id!==e.pointerId) return; const dx=e.clientX-sw.x, dy=e.clientY-sw.y, dt=performance.now()-sw.t; sw=null;
-    if(Math.abs(dx)>40&&Math.abs(dx)>1.5*Math.abs(dy)&&dt<800) galStep(dx<0?1:-1);
-    else if(galFull&&Math.abs(dx)<10&&Math.abs(dy)<10){ if(document.body.classList.contains('galStill')) galWake(); else { clearTimeout(galStillT); document.body.classList.add('galStill'); } } };
+    if(Math.abs(dx)>40&&Math.abs(dx)>1.5*Math.abs(dy)&&dt<800){ galStep(dx<0?1:-1); lastTap=null; }
+    else if(Math.abs(dx)<10&&Math.abs(dy)<10){ const now=performance.now();
+      if(lastTap&&now-lastTap.t<350&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<40){ lastTap=null; setGalFull(!galFull); return; }   // double tap
+      lastTap={t:now,x:e.clientX,y:e.clientY};
+      if(galFull){ if(document.body.classList.contains('galStill')) galWake(); else { clearTimeout(galStillT); document.body.classList.add('galStill'); } } } };
   st.addEventListener('pointerup',end); st.addEventListener('pointercancel',()=>{sw=null}); })();
 $('#gallery').addEventListener('click',()=>showGallery(true)); $('#thGallery').addEventListener('click',()=>{ wake(); showGallery(true); });
 $('#galleryClose').addEventListener('click',()=>showGallery(false));
