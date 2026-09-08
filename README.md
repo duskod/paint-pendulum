@@ -2,6 +2,8 @@
 
 A paint can on a string. **https://pendulum.clockerly.com**
 
+Made by [Dusko Delic](https://duskod.github.io/) in Teddington, London, 2026. Free, open source (MIT), no adverts, no account.
+
 Pull the can, let go, and paint spirals across the board as the pendulum swings, precesses and dies
 down. It is a real spherical pendulum, not a drawn Lissajous figure, so the loops never quite repeat.
 

@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#6e7072">
 <meta name="description" content="A paint can on a string. Pull it, let go, and a two-tone ribbon or a rake of six colours spirals across the board as the pendulum precesses.">
+<meta name="author" content="Dusko Delic">
+<link rel="author" href="https://duskod.github.io/">
+<link rel="author" type="text/plain" href="/humans.txt">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Paint Pendulum","url":"https://pendulum.clockerly.com/","image":"https://pendulum.clockerly.com/promo/og.png","applicationCategory":"EntertainmentApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"GBP"},"author":{"@type":"Person","name":"Dusko Delic","url":"https://duskod.github.io/"},"creator":{"@type":"Person","name":"Dusko Delic","url":"https://duskod.github.io/"},"copyrightHolder":{"@type":"Person","name":"Dusko Delic"},"copyrightYear":2026,"license":"https://github.com/duskod/paint-pendulum/blob/main/LICENSE","codeRepository":"https://github.com/duskod/paint-pendulum","description":"A paint can on a string. Pull it, let go, and a two-tone ribbon or a rake of six colours spirals across the board as the pendulum precesses."}</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
@@ -45,6 +49,7 @@
   #view.grabbing{cursor:grabbing}
   .hud{position:fixed;top:14px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
   h1{margin:0;font:800 14px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--ink);background:rgba(24,20,16,.6);padding:6px 10px;border-radius:8px}
+  h1 small{font:500 10px var(--body);letter-spacing:.04em;text-transform:none;color:var(--muted);margin-left:8px}
   .readout{font:500 12.5px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;background:rgba(24,20,16,.6);padding:6px 10px;border-radius:8px}
   .readout b{font-weight:500;color:var(--ink)}
   #hint{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);font:700 clamp(18px,3.4vw,26px) var(--display);color:rgba(241,236,226,.9);pointer-events:none;transition:opacity .7s;text-align:center;text-shadow:0 2px 14px #000;letter-spacing:.02em}
@@ -140,6 +145,9 @@
   #helpBox dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font:400 13px/1.35 var(--body)}
   #helpBox dt{font-weight:600;color:var(--ink);white-space:nowrap}
   #helpBox dd{margin:0;color:var(--muted)}
+  #helpBox p.about{margin:10px 0 0;font:400 13px/1.45 var(--body);color:var(--muted);max-width:66ch}
+  #helpBox p.about b{color:var(--ink);font-weight:600}
+  #helpBox p.about a{color:var(--accent)}
   #helpBox kbd{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
   @media (max-width:720px){ #helpBox .cols{grid-template-columns:1fr} #helpBox dl{grid-template-columns:1fr} #helpBox dt{white-space:normal} #helpBox dd{margin-bottom:4px} }
   #quick{display:none}
@@ -174,7 +182,7 @@
 
 <canvas id="view" aria-label="Pendulum painting board"></canvas>
 <header class="hud">
-  <h1>Paint Pendulum</h1>
+  <h1>Paint Pendulum<small>by Dusko Delic</small></h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
 <div id="hint">Pull the can, let go<small>Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
@@ -199,6 +207,7 @@
     <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
     <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="turntable">Turntable (loops round a hole)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
+    <label class="tog" title="A small signature in the corner of the board and on every saved picture, the way a painting is signed. Untick to leave the board blank"><input type="checkbox" id="sign" checked> Signed</label>
   </div>
   <div class="row" id="swingRow" hidden><span class="lbl">Swings</span><div class="chips" id="swingChips"></div><span class="lbl" id="swingHint" style="letter-spacing:.04em;text-transform:none">hover to see one, click to recolour or remove it</span>
     <span id="swingEdit" hidden><span id="swingName" class="lbl"></span><div class="chips" id="swingPal"></div><span class="custom" id="swingCustom" hidden></span>
@@ -292,6 +301,7 @@
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
+          <dt>Signed</dt><dd>a small signature sits in the board's corner and on every saved picture, as a painting is signed; untick it in the tray for a blank board</dd>
         </dl>
       </div>
       <div>
@@ -316,6 +326,8 @@
         </dl>
       </div>
     </div>
+    <h3>About</h3>
+    <p class="about">Paint Pendulum was made by <b>Dusko Delic</b> in Teddington, London, in September 2026. It is a real spherical pendulum on a real second pendulum, not a drawn curve, which is why no two swings quite repeat. It is free, carries no adverts and needs no account; the code is open under the MIT licence. More toys at <a href="https://duskod.github.io/" target="_blank" rel="noopener">duskod.github.io</a>.</p>
   </section>
 </div>
 
@@ -535,6 +547,18 @@ function step(dt){
   if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false;relaunch=[]}}else stillFor=0;
 }
 
+/* the signature: a small line in the board's corner, on screen and on every picture that leaves the app, as a
+   painting is signed. The tray's Signed box turns it off (remembered on this device). */
+const SIGN={app:'Paint Pendulum',name:'Dusko Delic',url:'pendulum.clockerly.com',home:'https://duskod.github.io/'};
+const SIGN_LINE=`${SIGN.app} \u00b7 ${SIGN.url} \u00b7 ${SIGN.name}`;
+let signed=true; try{ if(localStorage.getItem('pp-sign')==='0') signed=false; }catch(e){}
+function drawSign(c,x,y,w,h,s=1){
+  if(!signed) return;
+  const fs=Math.max(9,Math.min(13,Math.min(w,h)/s*0.028))*s, pad=fs*0.9;
+  c.save(); c.font=`500 ${fs}px ${getComputedStyle(document.body).getPropertyValue('--mono')||'monospace'}`; c.textAlign='right'; c.textBaseline='alphabetic';
+  c.fillStyle=lum(boardCol)>0.5?'rgba(0,0,0,.5)':'rgba(255,255,255,.55)';
+  c.fillText(SIGN_LINE,x+w-pad,y+h-pad); c.restore();
+}
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
 function render(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -549,6 +573,7 @@ function render(){
   { const [ax,ay]=apx(), pw=paint.width/dpr, ph=paint.height/dpr;
     if(hl&&swings.includes(hl)){ ctx.globalAlpha=0.18; ctx.drawImage(paint,ax,ay,pw,ph); ctx.globalAlpha=1; drawSwing(ctx,hl); }
     else ctx.drawImage(paint,ax,ay,pw,ph); }
+  drawSign(ctx,B.x,B.y,B.w,B.h,1);
   ctx.restore();
   if(!theatre){ rr(ctx,B.x,B.y,B.w,B.h,5); ctx.strokeStyle=resizing||hover?'rgba(230,203,148,.7)':'rgba(255,255,255,.1)'; ctx.lineWidth=resizing||hover?2:1; ctx.stroke(); }
   // carrying handle on the top edge: drag it to move the board
@@ -976,7 +1001,7 @@ async function galCapture(){
   if(!cur||cur.pts.length<400) return;   // nothing worth keeping
   // everything is taken NOW, synchronously: the next pattern may start (and clear the board) before the encoders return
   rebuild(); const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
-  const cx=c.getContext('2d'); cx.fillStyle=boardCol; cx.fillRect(0,0,c.width,c.height); cx.drawImage(paint,0,0);
+  const cx=c.getContext('2d'); cx.fillStyle=boardCol; cx.fillRect(0,0,c.width,c.height); cx.drawImage(paint,0,0); drawSign(cx,0,0,c.width,c.height,dpr);
   const th=document.createElement('canvas'); const sc=Math.min(1,360/c.width); th.width=Math.max(1,Math.round(c.width*sc)); th.height=Math.max(1,Math.round(c.height*sc));
   th.getContext('2d').drawImage(c,0,0,th.width,th.height);
   const item={id:Date.now(),title:($('#theatreTitle').textContent||$('#recipeTitle').textContent.replace('How to: ','')||'Swing'),steps:$('#recipeSteps').innerHTML,board:boardCol};
@@ -1062,15 +1087,32 @@ function listSwings(keepEditor){ requestAnimationFrame(placeTray); $('#swingHint
   });
 }
 function boardBlob(type='image/png',q){ rebuild(); const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
-  const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height); x.drawImage(paint,0,0);
+  const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height); x.drawImage(paint,0,0); drawSign(x,0,0,c.width,c.height,dpr);
   return new Promise(r=>c.toBlob(r,type,q)); }
-async function save(){ track('save'); saveBlob(await boardBlob(),'paint-pendulum-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png'); }
+/* the file itself carries the credit too: PNG tEXt chunks (Title, Author, Copyright, Software, Source), inserted
+   after IHDR. Most viewers show them under Properties / Info; the filename says the same for those that don't. */
+const CRC32=(()=>{const t=new Int32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c}
+  return b=>{let c=-1;for(let i=0;i<b.length;i++)c=t[(c^b[i])&255]^(c>>>8);return (c^-1)>>>0}})();
+const latin1=str=>Uint8Array.from(str,ch=>ch.charCodeAt(0)&255);
+const PNG_META=()=>[['Title',SIGN.app],['Author',SIGN.name],['Copyright','\u00a9 '+new Date().getFullYear()+' '+SIGN.name],['Software',SIGN.app+' (https://'+SIGN.url+'/)'],['Source','https://'+SIGN.url+'/'],['Comment','Made with '+SIGN.app+' by '+SIGN.name+', https://'+SIGN.url+'/']];
+async function pngWithText(blob){
+  try{
+    const src=new Uint8Array(await blob.arrayBuffer()); if(src.length<33||src[1]!==0x50) return blob;
+    const chunks=[]; for(const [k,v] of PNG_META()){ const data=latin1(k+'\0'+v), n=data.length, buf=new Uint8Array(12+n), dv=new DataView(buf.buffer);
+      dv.setUint32(0,n); buf.set([116,69,88,116],4); buf.set(data,8); dv.setUint32(8+n,CRC32(buf.subarray(4,8+n))); chunks.push(buf); }
+    const cut=8+25, out=new Uint8Array(src.length+chunks.reduce((a,c)=>a+c.length,0));
+    out.set(src.subarray(0,cut),0); let o=cut; for(const c of chunks){ out.set(c,o); o+=c.length; } out.set(src.subarray(cut),o);
+    return new Blob([out],{type:'image/png'});
+  }catch(e){ return blob; }
+}
+const fileStem=()=>'paint-pendulum-by-dusko-delic-';
+async function save(){ track('save'); saveBlob(await pngWithText(await boardBlob()),fileStem()+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png'); }
 async function saveBlob(blob,name){
   // inside the claude.ai viewer the page cannot download by itself; the viewer's download capability saves it
   const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
   if(dl){ try{ await dl.save({filename:name,data:blob}); toast('Saved'); }catch(err){ if(err&&err.code!=='declined') toast('Could not save: '+(err.message||err.code||'unknown')); } return; }
   const file=new File([blob],name,{type:'image/png'});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Paint Pendulum'});return}catch(e){}}
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:SIGN.app,text:'Made with '+SIGN.app+' by '+SIGN.name+' \u00b7 https://'+SIGN.url+'/'});return}catch(e){}}
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
 }
 /* inside the Android app: a button that opens Settings > Display > Screen saver, where Paint Pendulum can be picked.
@@ -1182,6 +1224,7 @@ addEventListener('pointermove',wake,{passive:true}); addEventListener('pointerdo
 /* movie mode: with a pattern running and nothing touched for a few seconds, slip into view mode on its own;
    any movement, touch or key brings everything back, and it drifts away again if left alone */
 let movie=true; try{ if(localStorage.getItem('pp-movie')==='0') movie=false; }catch(e){}
+$('#sign').checked=signed; $('#sign').addEventListener('change',e=>{ signed=e.target.checked; try{localStorage.setItem('pp-sign',signed?'1':'0')}catch(x){} });
 $('#movie').checked=movie; $('#movie').addEventListener('change',e=>{ movie=e.target.checked; try{localStorage.setItem('pp-movie',movie?'1':'0')}catch(x){} if(!movie&&viewAuto) setViewing(false); });
 let lastActivity=performance.now(), lastPX=0, lastPY=0, overTray=false;
 function activity(){ lastActivity=performance.now(); if(viewing&&viewAuto) setViewing(false); }
@@ -1209,7 +1252,7 @@ function openGalleryItem(it){ galSel=it; const u=URL.createObjectURL(it.full); g
 $('#gallery').addEventListener('click',()=>showGallery(true)); $('#thGallery').addEventListener('click',()=>{ wake(); showGallery(true); });
 $('#galleryClose').addEventListener('click',()=>showGallery(false)); $('#galleryBack').addEventListener('click',()=>{ $('#galleryView').hidden=true; $('#galleryGrid').hidden=false; });
 $('#galleryWrap').addEventListener('click',e=>{ if(e.target.id==='galleryWrap') showGallery(false); });
-$('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'); if(galSel) saveBlob(galSel.full,'paint-pendulum-'+galSel.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png'); });
+$('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'); if(galSel) pngWithText(galSel.full).then(b=>saveBlob(b,fileStem()+galSel.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png')); });
 $('#galleryDelete').addEventListener('click',async()=>{ if(!galSel) return; await galDel(galSel.id); galSel=null; showGallery(true); });
 $('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; $('#recipeTitle').textContent='How to: '+galSel.title; $('#recipeSteps').innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; showGallery(false); if(theatre) setTheatre(false); $('#recipe').hidden=false; });
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
