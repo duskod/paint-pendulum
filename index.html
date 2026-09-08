@@ -812,8 +812,8 @@ const RECIPES={
     'Pull the can about 45 cm to the right, then flick it upward as you let go, so it swings in an ellipse rather than a line.',
     'The ellipse slowly turns on its own: a wide swing on a real pendulum precesses.'],
   turntable:['Nozzle '+K('Pen (thin line)')+', three bright pens on a dark board.',
-    'String '+K('1.60')+', Air '+K('0.005')+', Twist '+K('0')+', Turn '+K('0.4')+'. The board turns about its own centre, so drag the dashed ring to put the pivot '+K('34 cm')+' off the board\'s centre (the example does this for you).',
-    'Pull the can '+K('22 cm')+' out and flick it sideways as you let go, so it swings in a fat ellipse. Let it run for '+K('75 s')+' (half a turn of the board), catch it, wait '+K('25 s')+' while the board turns on, change colour and launch it again the same way; three colours in all.',
+    'String '+K('1.00')+', Air '+K('0.006')+', Twist '+K('0')+', Turn '+K('0.6')+'. The board turns about its own centre, so drag the dashed ring to put the pivot '+K('34 cm')+' off the board\'s centre (the example does this for you).',
+    'Pull the can '+K('20 cm')+' out and flick it sideways as you let go, so it swings in a fat ellipse. After '+K('33 s')+' (a third of a turn of the board) catch it, change colour and launch it again the same way at once; three colours, 100 s in all.',
     'The pen swings round the pivot while the board creeps round its axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is. This is how the classic three-colour pendulum prints are made.'],
   lissajous:['Nozzle '+K('Pen (thin line)')+', dark pen on a pale board.','String '+K('1.80')+', Board str. '+K('0.80')+' (four-ninths of the can\'s), Air '+K('0.02')+', Twist '+K('0')+'. The periods are then 2:3.',
     'First the board: pull the steel handle straight down about 30 cm and let go. Its vertical swing is the faster of the two.',
@@ -839,12 +839,12 @@ const PRESETS={
     drive(0.44,0,0,0.62, 0,0,0,0); },
   turntable(){ // a slow turntable whose axle sits off to one side of the pivot: each loop lands a little further round
     setMode('pen'); setBoardColour('#14161a'); cols=['#ff4a3c','#3ddc84','#4a8cff','#ff4a3c','#3ddc84','#4a8cff']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
-    setSlider('L',1.6); setSlider('damp',0.005); setSlider('twist',0); setSlider('L2',1.05); P.damp2=0.2; setSlider('rpm',0.4); bd.ang=0;
+    setSlider('L',1.0); setSlider('damp',0.006); setSlider('twist',0); setSlider('L2',1.05); P.damp2=0.2; setSlider('rpm',0.6); bd.ang=0;
     offsetBoard(-0.34,0);
-    const a=0.22, f=0.16*Math.sqrt(G/P.L);   // 22 cm out, flicked for a 16 cm half-width ellipse
+    const a=0.2, f=0.15*Math.sqrt(G/P.L);   // 20 cm out, flicked for a 15 cm half-width ellipse
     drive(a,0,0,f, 0,0,0,0);
-    // 75 s = half a turn of the board at 0.4 rpm; 25 s pause = a sixth of a turn, so the three colours sit a third of a turn apart
-    setChain([{t:75,pause:true},{t:25,cx:a,cy:0,cvx:0,cvy:f,col:'#3ddc84'},{t:75,pause:true},{t:25,cx:a,cy:0,cvx:0,cvy:f,col:'#4a8cff'},{t:75,stop:true}]);
+    // a third of a turn per colour at 0.6 rpm: 33 s each, colour changed on the fly, 100 s in all
+    setChain([{t:33.3,cx:a,cy:0,cvx:0,cvy:f,col:'#3ddc84'},{t:33.3,cx:a,cy:0,cvx:0,cvy:f,col:'#4a8cff'},{t:33.3,stop:true}]);
   },
   lissajous(){ // board pendulum at (2/3)^2 of the can's length: periods 2:3
     setMode('pen'); setBoardColour('#f1ede4'); cols=['#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
@@ -908,20 +908,20 @@ function surprise(){
     steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(2))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board creeps round under the pen. Then the can: pull it ${cm(A)} out and let go with ${f<0.1?'no flick':'a slight flick'}, ${ph}.`);
     why='A harmonograph on a slowly turning board: the crossed lobes drift round and hatch over each other.';
   } else if(fam==='turntable'){ // a slow turntable, axle off to one side of the pivot: the loops walk round a hole, a colour per launch
-    setSlider('damp',+rnd(0.004,0.007).toFixed(3)); const rpm=pick([-1,1])*pick([0.4,0.5]); setSlider('rpm',rpm); bd.ang=0;
+    // a shorter string packs more loops into the 100 s the whole thing gets: a third of a turn per colour, no pauses
+    setBoardColour(pick(['#0c0c0e','#14161a','#1a1a1f','#101418']));   // near-black, as the prints are: every ink shows
+    const L1=+rnd(0.9,1.1).toFixed(2); setSlider('L',L1); setSlider('damp',+rnd(0.005,0.008).toFixed(3)); const rpm=pick([-1,1])*0.6; setSlider('rpm',rpm); bd.ang=0;
     const D=+rnd(0.28,0.38).toFixed(2), a=+(D*rnd(0.55,0.7)).toFixed(2), b=+(a*rnd(0.6,0.85)).toFixed(2), th=rnd(0,TAU);
     if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2}; offsetBoard(-D*Math.cos(th),-D*Math.sin(th));
-    const w1=Math.sqrt(G/L), f=b*w1; cx=a; cy=0; cvx=0; cvy=f;
-    // half a turn per colour; launches (bands-1)/bands of a turn apart, which is the same as 1/bands of a turn the
-    // other way round, so the colours end up evenly spaced and the pause stays positive
-    const bands=pick([3,3,3,4]), band=Math.round(180/(Math.abs(rpm)*6)), gap=Math.round((180-360/bands)/(Math.abs(rpm)*6));
+    const w1=Math.sqrt(G/L1), f=b*w1; cx=a; cy=0; cvx=0; cvy=f;
+    const bands=3, band=+(120/(Math.abs(rpm)*6)).toFixed(1), gap=0;
     // the colours must tell apart where the bands cross: palette colours if their hues are well spread, else vivid inks
     const hue=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(d<40) return null; let x=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return ((x*60)+360)%360;};
     const spread=[]; for(const c of P0.slice(1)){ const h=hue(c); if(h!==null&&lum(c)>0.3&&spread.every(o=>Math.min(Math.abs(hue(o)-h),360-Math.abs(hue(o)-h))>50)) spread.push(c); }
     const inks=['#ff4a3c','#3ddc84','#4a8cff','#ffd166','#ff5fd2','#2ee6ff','#b8ff2e','#ff9f1c'].sort(()=>Math.random()-0.5);
     let cs=spread.length>=bands?spread.slice(0,bands):inks.slice(0,bands);
-    cols[0]=cs[0]; for(let i=1;i<bands;i++){ chain.push({t:band,pause:true}); chain.push({t:Math.max(1,gap),cx,cy,cvx,cvy,col:cs[i]}); } chain.push({t:band,stop:true});
-    steps.push(`Turn ${K(Math.abs(rpm).toFixed(1))} ${rpm<0?'anticlockwise':'clockwise'}; the board is moved so its centre (the axle) sits ${cm(D)} from the pivot. Pull the can ${cm(a)} out and flick it sideways so it swings in a fat ellipse. After ${band} s (half a turn) catch it, wait ${gap} s while the board turns on, change colour and launch it again the same way: ${bands} colours in all.`);
+    cols[0]=cs[0]; for(let i=1;i<bands;i++) chain.push({t:band,cx,cy,cvx,cvy,col:cs[i]}); chain.push({t:band,stop:true});
+    steps.push(`Turn ${K(Math.abs(rpm).toFixed(1))} ${rpm<0?'anticlockwise':'clockwise'}; the board is moved so its centre (the axle) sits ${cm(D)} from the pivot. Pull the can ${cm(a)} out and flick it sideways so it swings in a fat ellipse. After ${Math.round(band)} s (a third of a turn) catch it, change colour and launch it again the same way at once: ${bands} colours, 100 s in all.`);
     why='The pen swings round the pivot while the board creeps round its own axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is.';
   } else if(fam==='rosette'){
     mode=Math.random()<0.5?'pen':'ribbon'; setSlider('damp',+rnd(0.015,0.035).toFixed(3)); setSlider('twist',mode==='ribbon'?+rnd(0.05,0.25).toFixed(2):0); setSlider('L2',1.05);
@@ -951,7 +951,7 @@ function surprise(){
     why='Heavy flow, a marbled stream that changes colour as it pours, and paint flung off the fast parts.';
   }
   setMode(mode);
-  steps.unshift(`Nozzle ${K($('#mode').selectedOptions[0].textContent)}, paint ${K(P0[0])}${one?' (one colour)':''}, String ${K(L.toFixed(2))}, Air ${K(P.damp.toFixed(3))}${P.twist?', Twist '+K(P.twist.toFixed(2)):''}${P.splat?', Splat '+K(P.splat.toFixed(2)):''}.`);
+  steps.unshift(`Nozzle ${K($('#mode').selectedOptions[0].textContent)}, paint ${K(P0[0])}${one?' (one colour)':''}, String ${K(P.L.toFixed(2))}, Air ${K(P.damp.toFixed(3))}${P.twist?', Twist '+K(P.twist.toFixed(2)):''}${P.splat?', Splat '+K(P.splat.toFixed(2)):''}.`);
   steps.push(why);
   // place both pendulums and go
   const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
