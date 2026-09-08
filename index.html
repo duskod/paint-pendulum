@@ -270,7 +270,9 @@
 </nav>
 <div id="galleryWrap" hidden>
   <section id="galleryBox" role="dialog" aria-labelledby="galleryTitle">
-    <header><h2 id="galleryTitle">Gallery</h2><span class="lbl" id="galleryCount"></span><button class="b sm" id="galleryClose">Close</button></header>
+    <header><h2 id="galleryTitle">Gallery</h2><span class="lbl" id="galleryCount" title="Kept in this browser's own storage on this device, newest first; the oldest goes when there are more than 40"></span>
+      <span style="display:flex;gap:6px;align-items:center"><span id="galleryClearAsk" hidden style="display:inline-flex;gap:6px;align-items:center;font:600 12px var(--body)">Remove every picture?<button class="b sm danger" id="galleryClearYes">Remove all</button><button class="b sm" id="galleryClearNo">Keep</button></span>
+      <button class="b sm" id="galleryClear" title="Remove every kept picture from this device">Clear all</button><button class="b sm" id="galleryClose">Close</button></span></header>
     <p class="lbl" id="galleryEmpty" style="text-transform:none;letter-spacing:.02em">Nothing here yet. In the theatre, every pattern that runs to its end is kept here as it finished.</p>
     <div id="galleryGrid"></div>
     <div id="galleryView" hidden>
@@ -1253,7 +1255,9 @@ async function showGallery(on){
   $('#galleryWrap').hidden=!on; if(!on){ for(const u of galUrls) URL.revokeObjectURL(u); galUrls=[]; return; }
   $('#galleryView').hidden=true; $('#galleryGrid').hidden=false;
   const items=await galAll(); GAL.items=items; const grid=$('#galleryGrid'); grid.innerHTML='';
-  $('#galleryEmpty').hidden=items.length>0; $('#galleryCount').textContent=items.length?items.length+' kept':'';
+  const bytes=items.reduce((a,it)=>a+((it.full&&it.full.size)||0)+((it.thumb&&it.thumb.size)||0),0), mb=bytes/1048576;
+  $('#galleryEmpty').hidden=items.length>0; $('#galleryCount').textContent=items.length?`${items.length} of ${GAL.max} kept \u00b7 ${mb<0.1?Math.round(bytes/1024)+' kB':mb.toFixed(1)+' MB'} on this device`:'';
+  $('#galleryClear').hidden=!items.length; $('#galleryClearAsk').hidden=true;
   for(const it of items){ const f=document.createElement('figure'); const im=document.createElement('img'); const u=URL.createObjectURL(it.thumb); galUrls.push(u); im.src=u; im.alt=it.title;
     const c=document.createElement('figcaption'); c.innerHTML=`<span>${it.title}</span><span>${new Date(it.id).toLocaleDateString()}</span>`; f.append(im,c);
     f.addEventListener('click',()=>openGalleryItem(it)); grid.appendChild(f); }
@@ -1271,7 +1275,10 @@ $('#galPrev').addEventListener('click',()=>galStep(-1)); $('#galNext').addEventL
     if(Math.abs(dx)>40&&Math.abs(dx)>1.5*Math.abs(dy)&&dt<800) galStep(dx<0?1:-1); };
   st.addEventListener('pointerup',end); st.addEventListener('pointercancel',()=>{sw=null}); })();
 $('#gallery').addEventListener('click',()=>showGallery(true)); $('#thGallery').addEventListener('click',()=>{ wake(); showGallery(true); });
-$('#galleryClose').addEventListener('click',()=>showGallery(false)); $('#galleryBack').addEventListener('click',()=>{ $('#galleryView').hidden=true; $('#galleryGrid').hidden=false; });
+$('#galleryClose').addEventListener('click',()=>showGallery(false));
+$('#galleryClear').addEventListener('click',()=>{ $('#galleryClearAsk').hidden=false; $('#galleryClear').hidden=true; $('#galleryClearYes').focus(); });
+$('#galleryClearNo').addEventListener('click',()=>{ $('#galleryClearAsk').hidden=true; $('#galleryClear').hidden=false; });
+$('#galleryClearYes').addEventListener('click',async()=>{ for(const it of await galAll()) await galDel(it.id); galSel=null; track('gallery-clear'); await showGallery(true); toast('Gallery cleared'); }); $('#galleryBack').addEventListener('click',()=>{ $('#galleryView').hidden=true; $('#galleryGrid').hidden=false; });
 $('#galleryWrap').addEventListener('click',e=>{ if(e.target.id==='galleryWrap') showGallery(false); });
 $('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'); if(galSel) pngWithText(galSel.full).then(b=>saveBlob(b,fileStem()+galSel.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png')); });
 $('#galleryDelete').addEventListener('click',async()=>{ if(!galSel) return; const i=GAL.items.indexOf(galSel); await galDel(galSel.id); galSel=null;
