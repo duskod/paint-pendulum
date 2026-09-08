@@ -35,6 +35,7 @@ A first visit opens in the theatre with the bar held on screen; after that the a
 - To slide the whole view instead (board, pivot and can together) drag with the right or middle mouse button, use two fingers on a phone, or the arrow keys; `0` recentres.
 - **Swings** chips: hover to see one swing alone, click to give it another palette or custom colours, or remove it (asked first).
 - **Save** exports the board as a PNG (share sheet on phones).
+- **Gallery** (`g`): in the theatre, every pattern that runs to its end is kept as it finished, on the device. View, save, delete, or open its recipe.
 - Paint sets, board and desk each have a **Custom** chip with colour pickers. Choices are remembered.
 
 The control tray drags by its grip; drop it near a side to dock it as a column, near the top or bottom to lie flat. Double-click the grip to reset.
