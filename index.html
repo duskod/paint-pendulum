@@ -224,6 +224,7 @@
       <button class="b primary" id="viewBtn" title="See the picture alone: no rig, no controls (v). Tap or any key to come back">View</button>
       <button class="b" id="rig" title="Show or hide the can, string and handle (r)">Hide rig</button>
       <button class="b" id="gallery" title="Patterns kept from the theatre (g)">Gallery</button>
+      <button class="b" id="saverBtn" hidden title="Open Android's screen saver settings and pick Paint Pendulum">Set as screen saver</button>
       <button class="b" id="help" title="All the controls (?)">?</button>
     </div>
   </div>
@@ -249,6 +250,7 @@
   <button class="b" id="thSave">Save</button>
   <button class="b" id="thFull">Full screen</button>
   <button class="b" id="thGallery">Gallery</button>
+  <button class="b" id="thSaver" hidden>Screen saver</button>
   <button class="b primary" id="thStudio">Studio</button>
 </nav>
 <div id="galleryWrap" hidden>
@@ -284,6 +286,7 @@
           <dt>Movie mode</dt><dd>on by default: five seconds after a pattern starts with nothing touched, the same happens by itself; move the mouse, touch or press a key to come back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Set as screen saver (Android app)</dt><dd>opens the phone's Screen saver settings; choose Paint Pendulum there and when it should start (charging, docked)</dd>
           <dt>Theatre</dt><dd>sit back: patterns compose themselves on a board held still, full screen, nothing else on show. Move for the bar: Next, Pause, Save, Studio. Keys there: <kbd>n</kbd> or <kbd>→</kbd> next, <kbd>p</kbd> pause, <kbd>Esc</kbd> back to the studio</dd>
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
@@ -1024,6 +1027,15 @@ async function saveBlob(blob,name){
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:'Paint Pendulum'});return}catch(e){}}
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
 }
+/* inside the Android app: a button that opens Settings > Display > Screen saver, where Paint Pendulum can be picked.
+   Chrome (and the app's browser tab) hands intent: URLs to Android; apps cannot set the screen saver themselves. */
+const inAndroidApp=/Android/i.test(navigator.userAgent)&&(new URLSearchParams(location.search).get('source')==='play'||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches);
+function openSaverSettings(){
+  track('saver-settings');
+  toast('In Screen saver, choose Paint Pendulum and when it should start',6000);
+  try{ location.href='intent:#Intent;action=android.settings.DREAM_SETTINGS;end'; }catch(e){}
+}
+if(inAndroidApp){ for(const id of ['#saverBtn','#thSaver']){ const b=$(id); b.hidden=false; b.addEventListener('click',openSaverSettings); } }
 /* usage counts: GoatCounter events (the beacon is only in the hosted page's head; no cookies, no identifiers) */
 function track(name){ try{ if(window.goatcounter&&goatcounter.count) goatcounter.count({path:'event/'+name,title:name,event:true}); }catch(e){} }
 window.addEventListener('appinstalled',()=>track('installed'));
