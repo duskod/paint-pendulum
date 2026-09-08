@@ -891,12 +891,14 @@ function galPut(item){ return galOpen().then(db=>new Promise(res=>{ if(!db) retu
 function galDel(id){ return galOpen().then(db=>new Promise(res=>{ if(!db) return res(false); const tx=db.transaction('gallery','readwrite'); tx.objectStore('gallery').delete(id); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); })); }
 async function galCapture(){
   if(!cur||cur.pts.length<400) return;   // nothing worth keeping
-  const full=await boardBlob('image/png');
-  // a small thumbnail for the grid
-  const th=document.createElement('canvas'); const sc=Math.min(1,360/paint.width); th.width=Math.max(1,Math.round(paint.width*sc)); th.height=Math.max(1,Math.round(paint.height*sc));
-  const x=th.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,th.width,th.height); x.drawImage(paint,0,0,th.width,th.height);
-  const thumb=await new Promise(r=>th.toBlob(r,'image/jpeg',0.85));
-  const item={id:Date.now(),title:($('#theatreTitle').textContent||$('#recipeTitle').textContent.replace('How to: ','')||'Swing'),steps:$('#recipeSteps').innerHTML,board:boardCol,full,thumb};
+  // everything is taken NOW, synchronously: the next pattern may start (and clear the board) before the encoders return
+  rebuild(); const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
+  const cx=c.getContext('2d'); cx.fillStyle=boardCol; cx.fillRect(0,0,c.width,c.height); cx.drawImage(paint,0,0);
+  const th=document.createElement('canvas'); const sc=Math.min(1,360/c.width); th.width=Math.max(1,Math.round(c.width*sc)); th.height=Math.max(1,Math.round(c.height*sc));
+  th.getContext('2d').drawImage(c,0,0,th.width,th.height);
+  const item={id:Date.now(),title:($('#theatreTitle').textContent||$('#recipeTitle').textContent.replace('How to: ','')||'Swing'),steps:$('#recipeSteps').innerHTML,board:boardCol};
+  item.full=await new Promise(r=>c.toBlob(r,'image/png'));
+  item.thumb=await new Promise(r=>th.toBlob(r,'image/jpeg',0.85));
   await galPut(item);
   const all=await galAll(); for(const old of all.slice(GAL.max)) await galDel(old.id);
   if(theatre) toast('Kept in the gallery: '+item.title,2500);
