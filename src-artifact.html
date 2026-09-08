@@ -434,6 +434,28 @@ function dab(x,y,r,k){
   cur.pts.push((x-W/2)/ppm,(y-H/2)/ppm,r/ppm,k);
 }
 let curSpeed=0, marbK=0, marbT=0, coilPh=0;
+/* When is a picture finished? Not when the swing stops, and not after a fixed ninety seconds. A rake
+   pouring six trails has covered its patch inside a minute and then spends the rest of the run painting
+   over what it already laid, until the passes fuse and the drawing becomes a shape. A thin pen never gets
+   there. So the picture is watched as it is made, on a small copy of the paint layer, and two things are
+   read off it:
+     detail  - what share of the painted pixels still touch bare board. A fresh line is nearly all edge;
+               as passes pile on, the gaps between them close and the edge disappears. Measured against
+               this picture's OWN peak, because a broad stroke starts with less edge than a thin one.
+     cov     - how much of the board has any ink at all. While it climbs, the picture is still going
+               somewhere; when it stops climbing, everything after it is over-painting.
+   Either sign ends the swing (or moves a panel row on to its next panel). A pen is untouched by both and
+   still runs its full minute and a half. */
+const inkStats=(()=>{ const CW=240, CH=135, c=document.createElement('canvas'); c.width=CW; c.height=CH;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  return ()=>{ try{ g.clearRect(0,0,CW,CH); g.drawImage(paint,0,0,CW,CH);
+    const d=g.getImageData(0,0,CW,CH).data; let ink=0, edge=0;
+    for(let y=1;y<CH-1;y++) for(let x=1;x<CW-1;x++){ const i=((y*CW+x)<<2)+3;
+      if(d[i]<=128) continue; ink++;
+      if(d[i-4]<=128||d[i+4]<=128||d[i-CW*4]<=128||d[i+CW*4]<=128) edge++; }
+    return {cov:ink/(CW*CH), detail:ink?edge/ink:0}; }catch(e){ return null; } }; })();
+let segT=0, covT=0, covLog=[], peakDetail=0, genPattern=false, showT=0;   // segT: since this launch, showT: since this pattern
+function resetCoverage(){ segT=0; covT=0; covLog.length=0; peakDetail=0; }
 function stamp(x,y,w,nx,ny,k){
   if(!cur) return;
   if(P.mode==='ribbon'){
@@ -494,7 +516,7 @@ function stampRun(k,px,py,w){
   sprev[k]=[px,py];
 }
 function step(dt){
-  turnCan(dt);
+  turnCan(dt); segT+=dt; showT+=dt;
   if(demo){ demoStep(dt); return; }
   if(grabbed){ if(!bgrab&&(Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); return; }
   if(running){ stepPend(can,P.L,P.damp,dt); if(!bgrab&&(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); }
@@ -552,6 +574,19 @@ function step(dt){
   const amp=Math.hypot(can.p[0],can.p[1]),spd=Math.hypot(can.v[0],can.v[1]);
   const bamp=Math.hypot(bd.p[0],bd.p[1]), bspd=Math.hypot(bd.v[0],bd.v[1]);
   if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false;relaunch=[]}}else stillFor=0;
+  // Only patterns the machine composed are stopped this way; a swing you launched yourself runs as long as it likes.
+  if(genPattern&&flowing&&segT-covT>=2){
+    covT=segT; const m=inkStats();
+    if(m){
+      covLog.push([segT,m.cov]); if(covLog.length>10) covLog.shift();
+      if(m.cov>0.005&&m.detail>peakDetail) peakDetail=m.detail;
+      const floorT=relaunch.length?16:30;                       // a panel in a row gets less rope than a whole picture
+      let done=segT>floorT&&peakDetail>0&&m.detail<0.55*peakDetail;          // the passes have fused
+      if(!done&&segT>26&&m.cov>0.02){ let b=null; for(const e of covLog) if(segT-e[0]>=14) b=e;
+        if(b&&(m.cov-b[1])/m.cov<0.03) done=true; }                          // nothing new is appearing
+      if(done){ if(relaunch.length) chainT=relaunch[0].t; else { flowing=false; running=false; } }
+    }
+  }
 }
 
 /* the signature: a small line in the board's corner, on screen and on every picture that leaves the app, as a
@@ -724,6 +759,7 @@ view.addEventListener('pointerdown',e=>{
     bd.v=[0,0,0]; view.classList.add('grabbing'); $('#hint').classList.add('gone'); return; }
   if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
   view.classList.add('grabbing'); if(!showRig) setRig(true); if(autoplay) setAutoplay(false);
+  genPattern=false; resetCoverage();
   grabbed=true; running=false; flowing=false; stillFor=0; relaunch=[];
   const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
   $('#hint').classList.add('gone');
@@ -778,6 +814,7 @@ function release(e){
 let handCounted=false;
 function launch(){
   if(!demo&&!autoplay&&!handCounted){ handCounted=true; track('hand-swing'); }
+  resetCoverage();   // each launch, including each panel of a row, is judged on its own
   remember_state();
   cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
   running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
@@ -948,10 +985,11 @@ const hueOf=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,mx=
   if(d<40) return null; let x=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return ((x*60)+360)%360;};
 const INKS=['#ff4a3c','#ffd166','#3ddc84','#4a8cff','#ff5fd2','#2ee6ff','#b8ff2e','#ff9f1c'];
 /* one colour that really reads on this board (a blue pen on a blue board was a real and invisible outcome) */
-function inkOn(board,cands){ const ok=(cands||[]).filter(c=>apart(c,board)>0.34); return ok.length?pick(ok):(lum(board)<0.5?'#f2f4f7':'#171717'); }
+function inkOn(board,cands){ const ok=(cands||[]).filter(c=>apart(c,board)>0.46);
+  return ok.length?pick(ok):(lum(board)<0.5?'#f2f4f7':'#171717'); }
 /* n colours that all read on the board; `spread` also holds their hues apart, for bands that must be told apart */
 function inksOn(board,P0,n,spread){
-  const ok=c=>apart(c,board)>(spread?0.2:0.12), out=[];
+  const ok=c=>apart(c,board)>(spread?0.28:0.18), out=[];
   for(const c of P0.slice(1)) if(ok(c)&&(!spread||out.every(o=>{const h=hueOf(c),k=hueOf(o);
     return h===null||k===null||Math.min(Math.abs(k-h),360-Math.abs(k-h))>45}))) out.push(c);
   for(const c of INKS.slice().sort(()=>Math.random()-0.5)) if(out.length<n&&ok(c)) out.push(c);
@@ -996,12 +1034,13 @@ const MEDIA={
   overlay:['pen'],
 };
 const THEATRE_MIX=['harmonograph','harmonograph','lissajous','lissajous','twin','twin','lattice','lattice',
-  'spiral','spiral','star','star','turntable','turntable','triptych','triptych','rosette','spiro','overlay'];
+  'spiral','spiral','star','star','turntable','turntable','triptych','rosette','spiro','overlay'];
 const STUDIO_MIX=['harmonograph','lissajous','twin','lattice','rosette','spiro','spiral','star','turntable','triptych','overlay'];
 const MOVERS=['turntable','triptych'];
 let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null, lastMed=null;
 function surprise(force){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
+  resetCoverage(); genPattern=true; showT=0;
   const mix=theatre?THEATRE_MIX:STUDIO_MIX;
   let fam=force||pick(mix);
   if(!force&&fam===lastFam) fam=pick(mix);   // one re-roll: never the same figure twice running
@@ -1177,14 +1216,19 @@ function autoTick(){
   if(!autoplay) return;
   const died=!running&&!demo&&!relaunch.length, old=T>80;
   if(paused) return;
-  if(died||old){ clearTimeout(autoT); galCapture(); autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(theatre||Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },died?3500:0); autoplay='waiting'; }
+  if(died||old){ clearTimeout(autoT); galCapture();
+    // now that a picture stops when it is finished rather than at a fixed time, the ones that finish early
+    // would flick past. Hold each finished picture long enough that every pattern gets about the same time
+    // on screen, whether it took thirty seconds to draw or eighty.
+    const hold=died?Math.min(15000,Math.max(3500,(46-showT)*1000)):0;
+    autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(theatre||Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },hold); autoplay='waiting'; }
 }
 function setAutoplay(on){ if(!on) clearTimeout(autoT); autoplay=on; $('#autoplay').checked=!!on; $('#qPlay').classList.toggle('on',!!on); clearTimeout(autoT); if(on&&!running) surprise(); }
 $('#surprise').addEventListener('click',surprise);
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
-$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); setSlider('coil',0); f(); showRecipe(k); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); setSlider('coil',0); resetCoverage(); genPattern=true; f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
