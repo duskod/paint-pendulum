@@ -197,7 +197,7 @@
     <button class="b" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
     <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
     <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
-    <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
+    <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="turntable">Turntable (loops round a hole)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
   </div>
   <div class="row" id="swingRow" hidden><span class="lbl">Swings</span><div class="chips" id="swingChips"></div><span class="lbl" id="swingHint" style="letter-spacing:.04em;text-transform:none">hover to see one, click to recolour or remove it</span>
@@ -208,7 +208,7 @@
     <label class="sl">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="The can's string: sets its period">String <input type="range" id="L" min="0.6" max="3" step="0.05" value="1.6"><output>1.60</output></label>
     <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Brd str <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
-    <label class="sl">Air <input type="range" id="damp" min="0.01" max="0.35" step="0.01" value="0.06"><output>0.06</output></label>
+    <label class="sl">Air <input type="range" id="damp" min="0.003" max="0.35" step="0.001" value="0.06"><output>0.06</output></label>
     <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="0" max="3" step="0.1" value="0"><output>off</output><button class="b sm" id="rpmDir" title="Direction of turn">&#8635;</button></label>
     <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
@@ -280,6 +280,7 @@
           <dt>Drag an edge or corner</dt><dd>resize the board</dd>
           <dt>Drag the brass handle (top edge)</dt><dd>move the board under the pendulum, paint and all (Shift-drag on the board does the same)</dd>
           <dt>Drag the dashed ring round the can at rest</dt><dd>move the pivot over the board; the board and its paint stay put</dd>
+          <dt>Turn with the pivot off the board's centre</dt><dd>the board turns about its own centre, like a turntable on an axle, so the swing's loops walk round in a ring and leave a hole (the Turntable example)</dd>
           <dt>Pull the steel handle (left edge), let go</dt><dd>swing the board as the second pendulum; its period is the Board string slider. Pull it straight down for a vertical sway, as in the Lissajous example</dd>
           <dt>Right or middle drag, two fingers</dt><dd>pan the view: board, pivot and can together</dd>
           <dt>View button</dt><dd>the picture alone: rig, tray and readouts all go; tap or any key brings them back</dd>
@@ -397,14 +398,19 @@ function drawTable(){
   v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(0,0,0,.5)'); tctx.fillStyle=v; tctx.fillRect(0,0,W,H);
 }
 
-/* frames: pivot frame (x,y horizontal metres, z down) -> board frame (board translated by bd.p, rotated by bd.ang) */
-function toBoard(x,y){const dx=x-bd.p[0],dy=y-bd.p[1],c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[dx*c-dy*s,dx*s+dy*c]}
+/* frames: pivot frame (x,y horizontal metres, z down) -> board frame (board translated by bd.p, turned by bd.ang
+   about its own centre, like a turntable on an axle; move the board off the pivot and the pen's loops walk round) */
+const bc=()=>[Bm.x+Bm.w/2,Bm.y+Bm.h/2];                                 // the axle: board centre, board-frame metres
+function toBoard(x,y){const [cx,cy]=bc(),dx=x-bd.p[0]-cx,dy=y-bd.p[1]-cy,c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[cx+dx*c-dy*s,cy+dx*s+dy*c]}
 function rotToPivot(qx,qy){const c=Math.cos(bd.ang),s=Math.sin(bd.ang);return[qx*c-qy*s,qx*s+qy*c]}
-function fromBoard(qx,qy){const r=rotToPivot(qx,qy);return[r[0]+bd.p[0],r[1]+bd.p[1]]}
+function fromBoard(qx,qy){const [cx,cy]=bc(),r=rotToPivot(qx-cx,qy-cy);return[r[0]+bd.p[0]+cx,r[1]+bd.p[1]+cy]}
 function bpx(q){return[W/2+q[0]*ppm,H/2+q[1]*ppm]}                     // board-frame metres -> paint-canvas px
-function scr(q){const c=Math.cos(bd.ang),s=Math.sin(bd.ang);            // board-frame metres -> screen px
-  return[W/2+(q[0]*c-q[1]*s+bd.p[0])*ppm,H/2+(q[0]*s+q[1]*c+bd.p[1])*ppm]}
-function boardTransform(c){c.translate(W/2+bd.p[0]*ppm,H/2+bd.p[1]*ppm);c.rotate(bd.ang);c.translate(-W/2,-H/2)}
+function scr(q){const p=fromBoard(q[0],q[1]);return[W/2+p[0]*ppm,H/2+p[1]*ppm]}   // board-frame metres -> screen px
+function boardTransform(c){const [cx,cy]=bc();c.translate(W/2+(bd.p[0]+cx)*ppm,H/2+(bd.p[1]+cy)*ppm);c.rotate(bd.ang);c.translate(-W/2-cx*ppm,-H/2-cy*ppm)}
+/* put the board's centre (the axle) dx,dy metres from the pivot's rest point, keeping the board where it is on
+   screen: the pivot moves instead, as the dashed-ring drag does. Paint travels with the board. */
+function offsetBoard(dx,dy){ const nx=dx-Bm.w/2, ny=dy-Bm.h/2, mx=nx-Bm.x, my=ny-Bm.y; if(Math.abs(mx)<1e-6&&Math.abs(my)<1e-6) return;
+  Bm.x=nx; Bm.y=ny; boardPx(); shiftPaint(mx,my); if(!theatre){ pan.x-=mx*ppm; pan.y-=my*ppm; savePan(); } saveBoard(); }
 
 function stepPend(o,L,damp,dt){
   const p=o.p,v=o.v;
@@ -492,6 +498,9 @@ function step(dt){
   if(grabbed){ if(!bgrab&&(Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); return; }
   if(running){ stepPend(can,P.L,P.damp,dt); if(!bgrab&&(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); }
   bd.ang+=P.rpm*TAU/60*dt;
+  if(relaunch.length){ chainT+=dt; if(chainT>=relaunch[0].t){ const r=relaunch.shift(); chainT=0;
+    if(r.stop){ restCan(); relaunch=[]; } else if(r.pause){ restCan(); } else { if(r.col) cols[0]=r.col; driveNow(r.cx,r.cy,r.cvx,r.cvy); }
+    return; } }
   if(!running) return;
   T+=dt;
   const tf=Math.sqrt(2*P.h/G);
@@ -523,7 +532,7 @@ function step(dt){
   lastAng=ang;
   const amp=Math.hypot(can.p[0],can.p[1]),spd=Math.hypot(can.v[0],can.v[1]);
   const bamp=Math.hypot(bd.p[0],bd.p[1]), bspd=Math.hypot(bd.v[0],bd.v[1]);
-  if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false}}else stillFor=0;
+  if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false;relaunch=[]}}else stillFor=0;
 }
 
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
@@ -627,8 +636,8 @@ function drawCan(x,y){
 
 /* interaction */
 let hist=[];
-function ptrPx(e){const r=view.getBoundingClientRect();const sx=e.clientX-r.left-pan.x-W/2-bd.p[0]*ppm,sy=e.clientY-r.top-pan.y-H/2-bd.p[1]*ppm;
-  const c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[W/2+sx*c-sy*s,H/2+sx*s+sy*c]}
+function ptrPx(e){const r=view.getBoundingClientRect(),[cx,cy]=bc();const sx=e.clientX-r.left-pan.x-W/2-(bd.p[0]+cx)*ppm,sy=e.clientY-r.top-pan.y-H/2-(bd.p[1]+cy)*ppm;
+  const c=Math.cos(-bd.ang),s=Math.sin(-bd.ang);return[W/2+cx*ppm+sx*c-sy*s,H/2+cy*ppm+sx*s+sy*c]}
 function ptr(e){const [px,py]=ptrPx(e);return[(px-W/2)/ppm,(py-H/2)/ppm]}
 /* board edge handles: which edge or corner is under the pointer */
 let resizing=null, hover=null;
@@ -683,7 +692,7 @@ view.addEventListener('pointerdown',e=>{
     bd.v=[0,0,0]; view.classList.add('grabbing'); $('#hint').classList.add('gone'); return; }
   if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
   view.classList.add('grabbing'); if(!showRig) setRig(true); if(autoplay) setAutoplay(false);
-  grabbed=true; running=false; flowing=false; stillFor=0;
+  grabbed=true; running=false; flowing=false; stillFor=0; relaunch=[];
   const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
   $('#hint').classList.add('gone');
 });
@@ -744,6 +753,12 @@ function launch(){
 }
 /* drive the rig: place the can (metres from the pivot's rest point) and the board pendulum, give each a velocity, go */
 let demo=null, after=null;   // `after`: the launch arrow lingers on the board for a few seconds after release
+/* a chain of follow-up moves, each `t` seconds after the previous one, timed on the rig's own clock (the board keeps
+   turning meanwhile): `pause` catches the can and waits, a launch entry changes the pen colour and pulls the can
+   again the same way, `stop` ends the run. The turntable pattern is three colours, launched a third of a turn apart. */
+let relaunch=[], chainT=0;
+function setChain(list){ relaunch=list; chainT=0; }
+function restCan(){ running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; qprev=null; sprev=[]; }
 function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   cancelGrab(); stopCan();
   const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
@@ -796,6 +811,10 @@ const RECIPES={
   rosette:['Nozzle '+K('Pen (thin line)')+', a light paint on a dark board.','String '+K('1.60')+', Air '+K('0.02')+', Twist '+K('0')+'. Leave the board still.',
     'Pull the can about 45 cm to the right, then flick it upward as you let go, so it swings in an ellipse rather than a line.',
     'The ellipse slowly turns on its own: a wide swing on a real pendulum precesses.'],
+  turntable:['Nozzle '+K('Pen (thin line)')+', three bright pens on a dark board.',
+    'String '+K('1.60')+', Air '+K('0.005')+', Twist '+K('0')+', Turn '+K('0.4')+'. The board turns about its own centre, so drag the dashed ring to put the pivot '+K('34 cm')+' off the board\'s centre (the example does this for you).',
+    'Pull the can '+K('22 cm')+' out and flick it sideways as you let go, so it swings in a fat ellipse. Let it run for '+K('75 s')+' (half a turn of the board), catch it, wait '+K('25 s')+' while the board turns on, change colour and launch it again the same way; three colours in all.',
+    'The pen swings round the pivot while the board creeps round its axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is. This is how the classic three-colour pendulum prints are made.'],
   lissajous:['Nozzle '+K('Pen (thin line)')+', dark pen on a pale board.','String '+K('1.80')+', Board str. '+K('0.80')+' (four-ninths of the can\'s), Air '+K('0.02')+', Twist '+K('0')+'. The periods are then 2:3.',
     'First the board: pull the steel handle straight down about 30 cm and let go. Its vertical swing is the faster of the two.',
     'Then the can: pull it 40 cm to the right and let go gently, a straight swing, at the moment the board passes through the middle. That timing gives the figure-of-eight; releasing when the board is at the end of its swing gives a fish shape instead.'],
@@ -818,6 +837,15 @@ const PRESETS={
   },
   rosette(){ setMode('pen'); setBoardColour('#14161a'); pickPalette(1); setSlider('L',1.6); setSlider('damp',0.02); setSlider('twist',0); setSlider('rpm',0); P.damp2=0.2; setSlider('L2',1.05);
     drive(0.44,0,0,0.62, 0,0,0,0); },
+  turntable(){ // a slow turntable whose axle sits off to one side of the pivot: each loop lands a little further round
+    setMode('pen'); setBoardColour('#14161a'); cols=['#ff4a3c','#3ddc84','#4a8cff','#ff4a3c','#3ddc84','#4a8cff']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',1.6); setSlider('damp',0.005); setSlider('twist',0); setSlider('L2',1.05); P.damp2=0.2; setSlider('rpm',0.4); bd.ang=0;
+    offsetBoard(-0.34,0);
+    const a=0.22, f=0.16*Math.sqrt(G/P.L);   // 22 cm out, flicked for a 16 cm half-width ellipse
+    drive(a,0,0,f, 0,0,0,0);
+    // 75 s = half a turn of the board at 0.4 rpm; 25 s pause = a sixth of a turn, so the three colours sit a third of a turn apart
+    setChain([{t:75,pause:true},{t:25,cx:a,cy:0,cvx:0,cvy:f,col:'#3ddc84'},{t:75,pause:true},{t:25,cx:a,cy:0,cvx:0,cvy:f,col:'#4a8cff'},{t:75,stop:true}]);
+  },
   lissajous(){ // board pendulum at (2/3)^2 of the can's length: periods 2:3
     setMode('pen'); setBoardColour('#f1ede4'); cols=['#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a','#1a1a1a']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
     setSlider('L',1.8); setSlider('damp',0.02); setSlider('twist',0); setSlider('rpm',0); setSlider('L2',+(1.8*4/9).toFixed(2)); P.damp2=0.02;
@@ -831,20 +859,22 @@ const PRESETS={
 /* Surprise me: compose a pattern from the families that work, with random colours, periods and release moment */
 const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)], cm=v=>Math.round(v*100)+' cm';
 const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>>8)&255)+0.0722*(n&255))/255};
-let autoplay=false, autoT=null, surpriseCount=0;
+let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null;
 function surprise(){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
   // the theatre wants the intricate two-pendulum figures; the studio button keeps a broader mix
-  const fam=pick(theatre?['harmonograph','harmonograph','lissajous','lissajous','lissajous','twin','twin','lattice','lattice','rake']
-                        :['harmonograph','lissajous','lissajous','twin','lattice','rosette','spiro','rake','ribbon','marbled']);
+  const fam=pick(theatre?['harmonograph','harmonograph','lissajous','lissajous','lissajous','twin','twin','lattice','lattice','rake','turntable','turntable']
+                        :['harmonograph','lissajous','lissajous','twin','lattice','rosette','spiro','rake','ribbon','marbled','turntable']);
+  // the turntable family moves the board off the pivot; put it back for the others
+  if(axleMoved&&fam!=='turntable'){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }
   const pal=Math.floor(Math.random()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
   const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a'], lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
-  const dark=Math.random()<0.6; setBoardColour(pick(dark?darkBoards:lightBoards));
-  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro'||fam==='twin'||fam==='lattice';
+  const dark=fam==='turntable'||Math.random()<0.6; setBoardColour(pick(dark?darkBoards:lightBoards));
+  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro'||fam==='twin'||fam==='lattice'||fam==='turntable';
   if(one){ // a pen: pick the palette colour that contrasts with the board, or plain white/ink
     const cand=P0.slice(1).filter(c=>dark?lum(c)>0.6:lum(c)<0.35); cols=[cand.length?pick(cand):(dark?'#f2f4f7':'#1a1a1a')].concat(P0.slice(2)); pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); }
   const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2);
-  const steps=[]; let mode='pen', bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='';
+  const steps=[]; let mode='pen', bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='', chain=[];
   const boardSwing=(ratio,angle,A)=>{ // board pendulum at a period ratio, swinging along `angle`, amplitude A, random phase
     const L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.012,0.03);
     const w2=Math.sqrt(G/L2), ph=rnd(0,TAU), ux=Math.cos(angle), uy=Math.sin(angle);
@@ -877,6 +907,22 @@ function surprise(){
     const A=rnd(0.35,0.48), a=rnd(0,TAU), w1=Math.sqrt(G/L), f=A*w1*rnd(0,0.3); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
     steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(2))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board creeps round under the pen. Then the can: pull it ${cm(A)} out and let go with ${f<0.1?'no flick':'a slight flick'}, ${ph}.`);
     why='A harmonograph on a slowly turning board: the crossed lobes drift round and hatch over each other.';
+  } else if(fam==='turntable'){ // a slow turntable, axle off to one side of the pivot: the loops walk round a hole, a colour per launch
+    setSlider('damp',+rnd(0.004,0.007).toFixed(3)); const rpm=pick([-1,1])*pick([0.4,0.5]); setSlider('rpm',rpm); bd.ang=0;
+    const D=+rnd(0.28,0.38).toFixed(2), a=+(D*rnd(0.55,0.7)).toFixed(2), b=+(a*rnd(0.6,0.85)).toFixed(2), th=rnd(0,TAU);
+    if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2}; offsetBoard(-D*Math.cos(th),-D*Math.sin(th));
+    const w1=Math.sqrt(G/L), f=b*w1; cx=a; cy=0; cvx=0; cvy=f;
+    // half a turn per colour; launches (bands-1)/bands of a turn apart, which is the same as 1/bands of a turn the
+    // other way round, so the colours end up evenly spaced and the pause stays positive
+    const bands=pick([3,3,3,4]), band=Math.round(180/(Math.abs(rpm)*6)), gap=Math.round((180-360/bands)/(Math.abs(rpm)*6));
+    // the colours must tell apart where the bands cross: palette colours if their hues are well spread, else vivid inks
+    const hue=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(d<40) return null; let x=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return ((x*60)+360)%360;};
+    const spread=[]; for(const c of P0.slice(1)){ const h=hue(c); if(h!==null&&lum(c)>0.3&&spread.every(o=>Math.min(Math.abs(hue(o)-h),360-Math.abs(hue(o)-h))>50)) spread.push(c); }
+    const inks=['#ff4a3c','#3ddc84','#4a8cff','#ffd166','#ff5fd2','#2ee6ff','#b8ff2e','#ff9f1c'].sort(()=>Math.random()-0.5);
+    let cs=spread.length>=bands?spread.slice(0,bands):inks.slice(0,bands);
+    cols[0]=cs[0]; for(let i=1;i<bands;i++){ chain.push({t:band,pause:true}); chain.push({t:Math.max(1,gap),cx,cy,cvx,cvy,col:cs[i]}); } chain.push({t:band,stop:true});
+    steps.push(`Turn ${K(Math.abs(rpm).toFixed(1))} ${rpm<0?'anticlockwise':'clockwise'}; the board is moved so its centre (the axle) sits ${cm(D)} from the pivot. Pull the can ${cm(a)} out and flick it sideways so it swings in a fat ellipse. After ${band} s (half a turn) catch it, wait ${gap} s while the board turns on, change colour and launch it again the same way: ${bands} colours in all.`);
+    why='The pen swings round the pivot while the board creeps round its own axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is.';
   } else if(fam==='rosette'){
     mode=Math.random()<0.5?'pen':'ribbon'; setSlider('damp',+rnd(0.015,0.035).toFixed(3)); setSlider('twist',mode==='ribbon'?+rnd(0.05,0.25).toFixed(2):0); setSlider('L2',1.05);
     const A=rnd(0.35,0.5), f=rnd(0.35,0.75); cx=A; cy=0; cvx=0; cvy=f;
@@ -909,8 +955,8 @@ function surprise(){
   steps.push(why);
   // place both pendulums and go
   const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
-  driveNow(cx,cy,cvx,cvy);
-  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',twin:'Twin rosette',lattice:'Lattice',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter'}[fam]+' #'+(++surpriseCount);
+  driveNow(cx,cy,cvx,cvy); setChain(chain);
+  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',twin:'Twin rosette',lattice:'Lattice',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter',turntable:'Turntable'}[fam]+' #'+(++surpriseCount);
   $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
   $('#recipe').hidden=autoplay||phone()||theatre; $('#theatreTitle').textContent=title; if(!theatre) toast(title+(autoplay?' · auto-play':''),3000);
@@ -942,7 +988,7 @@ async function galCapture(){
 }
 function autoTick(){
   if(!autoplay) return;
-  const died=!running&&!demo, old=T>80;
+  const died=!running&&!demo&&!relaunch.length, old=T>80;
   if(paused) return;
   if(died||old){ clearTimeout(autoT); galCapture(); autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(theatre||Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },died?3500:0); autoplay='waiting'; }
 }
@@ -954,12 +1000,12 @@ $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
 $('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
-function catchCan(){demo=null;grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
+function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
 function clearBoard(){ if(swings.length){ remember_state(); swings=[]; cur=null; rebuild(); listSwings(); } stopCan(); angAcc=0; T=0; if(P.rpm) setSlider('rpm',0); bd.ang=0; }
 /* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
 const history=[];
 function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=$('#qUndo').disabled=false; }
-function stopCan(){ grabbed=false; running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; bd.p=[0,0,P.L2]; bd.v=[0,0,0]; sprev=[]; qprev=null; }
+function stopCan(){ relaunch=[]; grabbed=false; running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; bd.p=[0,0,P.L2]; bd.v=[0,0,0]; sprev=[]; qprev=null; }
 function undoLast(){
   const prev=history.pop(); if(!prev) return;
   stopCan(); swings=prev; cur=null; rebuild(); listSwings();
@@ -1085,7 +1131,7 @@ $('#mode').addEventListener('change',e=>{
   else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
 });
 $('#auto').addEventListener('change',e=>P.auto=e.target.checked);
-for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpmAbs',v=>v>0?v.toFixed(1):'off'],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
+for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v<0.01?v.toFixed(3):v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpmAbs',v=>v>0?v.toFixed(1):'off'],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
   const el=$('#'+id), out=el.nextElementSibling;
   el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else if(key==='rpmAbs')P.rpm=+el.value*rpmDir;else P[key]=+el.value;out.textContent=fmt(+el.value)});
 }
@@ -1123,7 +1169,8 @@ function setTheatre(on,opts={}){
     if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
     holdAwake(true); wake(); track('theatre'); }
-  else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
+  else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false);
+    if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   /* a turntable pattern moved the board off the pivot: put it back */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
 function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); if(performance.now()<holdBar) return; stillT=setTimeout(()=>document.body.classList.add('still'),3000); }

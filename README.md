@@ -16,7 +16,7 @@ A first visit opens in the theatre with the bar held on screen; after that the a
 
 ## Playing
 - **Surprise me** (or `p`, or Surprise on the phone bar) composes a pattern for you: a random family (harmonograph,
-  Lissajous, rosette, spirograph, rake, ribbon, splatter) with random colours, periods and release moment, and shows
+  Lissajous, rosette, spirograph, turntable, rake, ribbon, splatter) with random colours, periods and release moment, and shows
   the recipe to repeat it. **Auto-play** (`a`; double-tap Surprise on the phone) keeps serving new ones.
 - **Pull the can and let go.** The speed and direction you release it with set the swing. `Esc` cancels a pull.
 - **Tap the board** (or press **Catch** / `space`) to catch it. **Undo** reverses the last launch, removal or clear.
@@ -25,11 +25,13 @@ A first visit opens in the theatre with the bar held on screen; after that the a
   **Gap** sets the hole spacing, **Twist** how fast the can (and bar) turns. **Splat** flings droplets off the stream.
 - **Example** menu: pick one and watch a ghost hand pull the can and flick it, then the pattern draws itself; a card lists the settings and gestures to repeat it by hand.
   Harmonograph (the classic two-lobe print: pen on the can, board swinging at a slightly different period),
-  Rosette, Lissajous 2:3, Splatter can, Six-colour rake.
+  Rosette, Turntable (the classic three-colour pendulum print: loops walking round a hole, one colour per launch),
+  Lissajous 2:3, Splatter can, Six-colour rake.
 - The board hangs on its own strings as a second pendulum. Pull the **steel handle on its left edge** and let go
   to swing it in any direction you like (straight down for a vertical sway); **Board str.** sets its period, so the
   ratio to the can's **String** is yours to choose. **Sway** gives it a random push whenever you release the can.
-  **Turn** spins the board.
+  **Turn** spins the board about its own centre, like a turntable on an axle. Put the pivot off the board's centre
+  (drag the dashed ring round the can at rest) and the swing's loops walk round in a ring, leaving a hole over the axle.
 - **Flow** and **String** set the line weight and the period; **Air** how fast the swing dies.
 - The board's edges drag to resize it. The brass handle on its top edge moves the board under the pendulum, paint and all (Shift-drag on the board does the same). Paint only lands on the board. To put the pivot somewhere else over the board instead, drag the dashed ring round the can while it hangs at rest. **Fit board** restores everything.
 - To slide the whole view instead (board, pivot and can together) drag with the right or middle mouse button, use two fingers on a phone, or the arrow keys; `0` recentres.
