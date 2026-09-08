@@ -222,7 +222,7 @@
     <button class="b" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
     <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
     <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
-    <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="turntable">Turntable (loops round a hole)</option><option value="lissajous">Lissajous 2:3</option><option value="splatter">Splatter can</option><option value="rake">Six-colour rake</option></select></label>
+    <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="spiral">Spiral (rings like a record)</option><option value="turntable">Turntable (loops round a hole)</option><option value="coil">Coil (a broad band on a turning board)</option><option value="lissajous">Lissajous 2:3</option><option value="rake">Rake (braided trails)</option><option value="panels">Panels (a row of three)</option><option value="poured">Poured (a coiling stream)</option><option value="splatter">Splatter can</option></select></label>
     <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
     <label class="tog" title="A small signature in the corner of the board and on every saved picture, the way a painting is signed. Untick to leave the board blank"><input type="checkbox" id="sign" checked> Signed</label>
   </div>
@@ -240,6 +240,7 @@
     <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
     <label class="sl">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="Paint flung off the stream: droplets around the line, blobs where it slows">Splat <input type="range" id="splat" min="0" max="1" step="0.05" value="0"><output>0</output></label>
+    <label class="sl" title="A thick stream falling on the board buckles and coils, like a rope of syrup poured on a plate: loops where the can dawdles, pulling straight where it races">Coil <input type="range" id="coil" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <div class="btns">
       <button class="b" id="catch">Catch</button>
       <button class="b" id="undo" disabled title="Undo the last launch, removal or clear">Undo</button>
@@ -324,6 +325,7 @@
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
+          <dt>Coil (slider)</dt><dd>how thickly the paint is poured. Turned up, the falling stream buckles and coils like a rope of syrup on a plate: tight loops where the swing dawdles at its ends, pulled straight through the fast middle. A pen never coils</dd>
           <dt>Signed</dt><dd>a small signature sits in the board's corner and on every saved picture, as a painting is signed; untick it in the tray for a blank board</dd>
         </dl>
       </div>
@@ -387,7 +389,7 @@ PAIRS.push(CUSTOM);
 const TABLES=[['Oak','#8b6541','#66452a','wood'],['Walnut','#4b2f1f','#2c1a10','wood'],['Ash','#d9c3a2','#b6976f','wood'],['Concrete','#7f8183','#5c5e60','stone'],['Slate','#2e3236','#1c1f22','stone'],['Custom','#3b4a5a','#3b4a5a','flat']];
 let tableSel=3; try{const t=JSON.parse(localStorage.getItem('pp-table')||'null'); if(t&&Number.isInteger(t.i)&&TABLES[t.i]){tableSel=t.i; if(isHex(t.c)){TABLES[5][1]=TABLES[5][2]=t.c}}}catch(e){}
 function remember(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
-const P={L:1.6,damp:0.06,flow:2,h:0.08,swing:0,L2:1.05,damp2:0.18,rpm:0,twist:0.15,mode:'ribbon',gap:0.02,auto:true,splat:0};
+const P={L:1.6,damp:0.06,flow:2,h:0.08,swing:0,L2:1.05,damp2:0.18,rpm:0,twist:0.15,mode:'ribbon',gap:0.02,auto:true,splat:0,coil:0};
 let cols=PAIRS[0].slice(1), boardCol=BOARDS[0][1];
 const nozzles=()=>(P.mode==='ribbon'||P.mode==='solid'||P.mode==='pen'||P.mode==='marbled')?1:+P.mode;
 const colourCount=m=>m==='solid'||m==='pen'?1:m==='ribbon'?2:m==='marbled'?6:+m;
@@ -467,7 +469,7 @@ function dab(x,y,r,k){
   pctx.fillStyle=cur.cols[k]; pctx.beginPath(); pctx.arc(x-ax,y-ay,r,0,TAU); pctx.fill();
   cur.pts.push((x-W/2)/ppm,(y-H/2)/ppm,r/ppm,k);
 }
-let curSpeed=0, marbK=0, marbT=0;
+let curSpeed=0, marbK=0, marbT=0, coilPh=0;
 function stamp(x,y,w,nx,ny,k){
   if(!cur) return;
   if(P.mode==='ribbon'){
@@ -534,7 +536,12 @@ function step(dt){
   if(running){ stepPend(can,P.L,P.damp,dt); if(!bgrab&&(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); }
   bd.ang+=P.rpm*TAU/60*dt;
   if(relaunch.length){ chainT+=dt; if(chainT>=relaunch[0].t){ const r=relaunch.shift(); chainT=0;
-    if(r.stop){ restCan(); relaunch=[]; } else if(r.pause){ restCan(); } else { if(r.col) cols[0]=r.col; driveNow(r.cx,r.cy,r.cvx,r.cvy); }
+    if(r.move) offsetBoard(r.move[0],r.move[1]);
+    if(r.mode) setMode(r.mode);
+    if(r.set) for(const k in r.set) setSlider(k,r.set[k]);
+    if(r.cols) cols=r.cols.slice();
+    if(r.col) cols[0]=r.col;
+    if(r.stop){ restCan(); relaunch=[]; } else if(r.pause){ restCan(); } else { driveNow(r.cx,r.cy,r.cvx,r.cvy); }
     return; } }
   if(!running) return;
   T+=dt;
@@ -553,9 +560,22 @@ function step(dt){
       if(wcur<0) wcur=wt; const rate=0.05*dt; wcur+=Math.max(-rate*2,Math.min(rate,wt-wcur));
       const w=Math.max(1.2,wcur*ppm), n=nozzles(); curSpeed=sp;
       if(P.mode==='marbled'){ marbT-=dt; if(marbT<=0){ marbK=Math.floor(Math.random()*6); marbT=0.12+Math.random()*0.8; } }
-      if(n===1){ const [px,py]=bpx(q); stampRun(0,px,py,w); }
+      /* liquid rope coiling. A thick stream falling on the board cannot be absorbed as fast as it arrives,
+         so it buckles and coils, the way a rope of syrup does on a plate. Which mark you get is set by the
+         Strouhal number, the pen's speed against the coil's own speed and radius: dawdling gives closed loops,
+         faster gives cusps, faster still a meander, and a racing pen pulls the stream straight. A pendulum
+         sweeps from nought at the turning point to full speed through the middle, so one swing lays down the
+         whole sequence by itself. A pen and a marbled pour do not coil, so they are left alone. */
+      const coily=P.coil>0&&P.mode!=='pen'&&P.mode!=='marbled', OM=58-32*P.coil, CR=0.002+0.013*P.coil;
+      if(coily) coilPh+=OM*dt;
+      const st=coily?sp/(OM*CR):0, cAl=CR*Math.max(0,1-st), cTr=CR/(1+Math.max(0,st-1)*1.6);
+      const coilAt=k=>{ const ph=coilPh+(n>1?k*TAU/n:0), c=Math.cos(ph), s2=Math.sin(ph);
+        return [cTr*nprev[0]*c+cAl*nprev[1]*s2, cTr*nprev[1]*c-cAl*nprev[0]*s2]; };
+      if(n===1){ let qq=q; if(coily){ const c=coilAt(0); qq=[q[0]+c[0],q[1]+c[1]]; }
+        const [px,py]=bpx(qq); stampRun(0,px,py,w); }
       else for(let k=0;k<n;k++){
-        const o=nozzleOffset(k), qk=toBoard(can.p[0]+can.v[0]*tf+o[0],can.p[1]+can.v[1]*tf+o[1]);
+        const o=nozzleOffset(k); let qk=toBoard(can.p[0]+can.v[0]*tf+o[0],can.p[1]+can.v[1]*tf+o[1]);
+        if(coily){ const c=coilAt(k); qk=[qk[0]+c[0],qk[1]+c[1]]; }
         const [px,py]=bpx(qk); stampRun(k,px,py,w);
       }
       if(level<=0) flowing=false;
@@ -869,9 +889,21 @@ const RECIPES={
   splatter:['Nozzle '+K('Marbled stream')+', Paint '+K('Neon')+', Board '+K('Custom')+' ivory.','Flow '+K('6.5')+', Splat '+K('0.85')+', String '+K('1.40')+', Air '+K('0.09')+', Twist '+K('0')+'.',
     'Pull the can out to the upper right and flick it hard, fast enough that the stream flings droplets.',
     'The heavy flow pools where the can slows and the colour changes every fraction of a second, like a can with several paints tipped in.'],
-  rake:['Nozzle '+K('6 in line')+', Paint '+K('Lagoon')+', Board '+K('Black')+'.','Flow '+K('2.0')+', Gap '+K('2.2')+', Twist '+K('0.03')+', String '+K('1.60')+', Air '+K('0.05')+'.',
-    'Wait until the bar has idled round to the angle you want, then pull the can 40 cm to the right and flick it upward as you let go.',
-    'The six trails bunch when the swing runs along the bar and fan out when it runs across it; the slow twist rotates the bar so they cross over.'],
+  rake:['Nozzle '+K('4 in line')+', six bright paints on a black board.','Flow '+K('1.1')+' (deliberately mean), Gap '+K('3.2')+', Twist '+K('0.02')+', String '+K('1.70')+', Board str. '+K('0.76')+', Air '+K('0.014')+'.',
+    'First the board: pull the steel handle straight down about 30 cm and let go. Then the can: pull it 46 cm to the right and let go gently, as the board passes through the middle.',
+    'The flow is kept low on purpose. Open it up and the four trails merge into one broad smear; starved, they stay separate and braid over each other as the bar turns.'],
+  spiral:['Nozzle '+K('Two-tone ribbon')+', two paints on a dark board.','String '+K('1.50')+', Air '+K('0.038')+', Flow '+K('4.6')+', Twist '+K('0.04')+', Turn '+K('0')+'. Leave the board still.',
+    'Pull the can 50 cm to the right and flick it hard along the edge as you let go, hard enough that it swings in a circle rather than an ellipse.',
+    'A circular swing that dies away: every loop is a little smaller than the last, so the band winds inward in even rings, like the grooves of a record.'],
+  coil:['Nozzle '+K('Two-tone ribbon')+', two bright paints on a black board.','String '+K('1.60')+', Board str. '+K('1.49')+', Air '+K('0.022')+', Flow '+K('5.0')+', Twist '+K('0.08')+', Turn '+K('0.3')+'.',
+    'First the board: pull the steel handle 30 cm straight down and let go. Then the can: pull it 46 cm to the right and let go with a small flick.',
+    'A broad band laid down on a board that is slowly turning: each pass lands beside the last instead of on top of it, so the whole thing coils like a spring seen end on.'],
+  poured:['Nozzle '+K('Single')+', one dark paint on a pale board.','String '+K('2.00')+' (long and slow), Air '+K('0.020')+', Flow '+K('5.5')+', '+K('Coil')+' '+K('0.70')+', Turn '+K('0')+'.',
+    'Pull the can 50 cm to the right and flick it gently upward, so it swings in a slow wide ellipse. Then leave it alone.',
+    'Poured thickly enough, the falling stream cannot be absorbed as fast as it arrives, so it buckles and coils like a rope of syrup landing on a plate. The pendulum does the rest: it is slowest at the ends of each swing, where the stream piles into tight loops, and fastest through the middle, where the same stream is pulled straight. One swing lays down the whole range.'],
+  panels:['Nozzle '+K('Two-tone ribbon')+', a fresh pair of paints for each panel, on a black board.','String '+K('1.00')+' (short, so the circles are small and quick), Air '+K('0.055')+', Flow '+K('4.6')+', Twist '+K('0.10')+'.',
+    'Pull the can out and flick it round for a circle. After about 27 s, when it has wound down to a disc, catch it, slide the board a panel\'s width along by its brass handle, change both paints and go again.',
+    'Three dying circles, each on its own patch of board. Moving the board between swings is what turns one crowded picture into a row that reads as a set.'],
 };
 function showRecipe(key){ const r=RECIPES[key]; if(!r) return;
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':''; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); $('#recipe').hidden=false; }
@@ -901,110 +933,253 @@ const PRESETS={
     drive(0.4,0,0,0.05, 0,0,0,A*w2); },
   splatter(){ setMode('marbled'); setBoardColour('#efe6d3'); pickPalette(2); setSlider('flow',6.5); setSlider('splat',0.85); setSlider('L',1.4); setSlider('damp',0.09); setSlider('twist',0); setSlider('rpm',0);
     drive(0.38,-0.12,0.9,1.3, 0,0,0,0); },
-  rake(){ setMode('6'); setBoardColour('#0c0c0e'); pickPalette(0); setSlider('flow',2); setSlider('splat',0); setSlider('L',1.6); setSlider('damp',0.05); setSlider('twist',0.03); setSlider('gap',2.2); setSlider('rpm',0);
-    drive(0.4,-0.05,0.15,0.7, 0,0,0,0); },
+  rake(){ // starved flow is the whole trick: opened up, four trails merge into one smear
+    setMode('4'); setBoardColour('#0c0c0e'); pickPalette(0); setSlider('flow',1.1); setSlider('splat',0); setSlider('L',1.7); setSlider('damp',0.014);
+    setSlider('twist',0.02); setSlider('gap',3.2); setSlider('rpm',0); setSlider('L2',+(1.7*4/9).toFixed(2)); P.damp2=0.02;
+    const A=0.3, w2=Math.sqrt(G/P.L2);
+    drive(0.46,0,0,0.03, 0,0,0,A*w2); },
+  spiral(){ // a circular swing dying away: even rings, like a record
+    setMode('ribbon'); setBoardColour('#101418'); cols=['#e8b53f','#c47a2c','#e8b53f','#c47a2c','#e8b53f','#c47a2c']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',1.5); setSlider('damp',0.038); setSlider('flow',4.6); setSlider('twist',0.04); setSlider('rpm',0); setSlider('splat',0); setSlider('L2',1.05); P.damp2=0.2;
+    const w=Math.sqrt(G/1.5);
+    drive(0.5,0,0,0.5*w*0.985, 0,0,0,0); },
+  coil(){ // a broad band on a slowly turning board: each pass lands beside the last
+    setMode('ribbon'); setBoardColour('#0c0c0e'); cols=['#ff2fa6','#b8ff2e','#ff2fa6','#b8ff2e','#ff2fa6','#b8ff2e']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',1.6); setSlider('damp',0.022); setSlider('flow',5.0); setSlider('twist',0.08); setSlider('rpm',0.3); setSlider('splat',0);
+    setSlider('L2',+(1.6*0.965*0.965).toFixed(2)); P.damp2=0.02;
+    const A=0.3, w2=Math.sqrt(G/P.L2);
+    drive(0.46,0,0,0.12, 0,0,0,A*w2); },
+  poured(){ // a thick stream buckles and coils where the swing dawdles, and pulls straight where it races
+    setMode('solid'); setBoardColour('#efe6d3'); cols=['#1d1d1f','#1d1d1f','#1d1d1f','#1d1d1f','#1d1d1f','#1d1d1f'];
+    pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    setSlider('L',2.0); setSlider('damp',0.02); setSlider('flow',5.5); setSlider('coil',0.7); setSlider('twist',0);
+    setSlider('rpm',0); setSlider('splat',0); setSlider('L2',1.05); P.damp2=0.2;
+    const w=Math.sqrt(G/2.0);
+    drive(0.5,0,0,0.5*w*0.6, 0,0,0,0); },
+  panels(){ // the board is carried along between swings, so each dying circle gets its own patch
+    setMode('ribbon'); setBoardColour('#0c0c0e'); setSlider('L',1.0); setSlider('damp',0.055); setSlider('flow',4.6); setSlider('twist',0.1);
+    setSlider('rpm',0); setSlider('splat',0); setSlider('L2',1.05); P.damp2=0.2; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
+    if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2};
+    const down=Bm.h>Bm.w*1.15, along=down?Bm.h:Bm.w, across=down?Bm.w:Bm.h;
+    const home=[axleMoved.x,axleMoved.y], n=3, span=Math.min(along,4.2)*0.8, st=span/n;
+    const R=Math.max(0.11,Math.min(st*0.42,across*0.40)), w=Math.sqrt(G/1.0), f=R*w*0.97;
+    const dxs=[0,1,2].map(i=>{ const d=-span/2+st*(i+0.5); return down?[axleMoved.x,d]:[d,axleMoved.y]; });
+    const sets=[['#22e5dc','#ff8c2a'],['#ef476f','#ffd166'],['#b46bff','#06d6a0']];
+    offsetBoard(dxs[0][0],dxs[0][1]); cols=[sets[0][0],sets[0][1],sets[0][0],sets[0][1],sets[0][0],sets[0][1]];
+    drive(R,0,0,f, 0,0,0,0);
+    setChain([{t:27,move:dxs[1],cols:[sets[1][0],sets[1][1],sets[1][0],sets[1][1],sets[1][0],sets[1][1]],cx:R,cy:0,cvx:0,cvy:f},
+              {t:27,move:dxs[2],cols:[sets[2][0],sets[2][1],sets[2][0],sets[2][1],sets[2][0],sets[2][1]],cx:R,cy:0,cvx:0,cvy:f},
+              {t:27,move:home,stop:true}]); },
 };
-/* Surprise me: compose a pattern from the families that work, with random colours, periods and release moment */
+/* Surprise me: every pattern is a FIGURE crossed with a MEDIUM.
+   The figure is what the two pendulums and the turntable trace out. The medium is what leaves the can: a thin
+   pen that can lace for a minute and a half, or a fat two-tone ribbon, a rake of holes in a line, one hole
+   wide open, or several paints tipped in together and poured hard enough to fling droplets. A thick medium
+   lays a broad band and empties the can, so it is given fewer loops on purpose or it fills in to mud. */
 const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)], cm=v=>Math.round(v*100)+' cm';
 const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>>8)&255)+0.0722*(n&255))/255};
-let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null;
-function surprise(){
+const oneCol=c=>[c,c,c,c,c,c];
+const apart=(a,b)=>Math.abs(lum(a)-lum(b));
+const hueOf=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  if(d<40) return null; let x=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return ((x*60)+360)%360;};
+const INKS=['#ff4a3c','#ffd166','#3ddc84','#4a8cff','#ff5fd2','#2ee6ff','#b8ff2e','#ff9f1c'];
+/* one colour that really reads on this board (a blue pen on a blue board was a real and invisible outcome) */
+function inkOn(board,cands){ const ok=(cands||[]).filter(c=>apart(c,board)>0.34); return ok.length?pick(ok):(lum(board)<0.5?'#f2f4f7':'#171717'); }
+/* n colours that all read on the board; `spread` also holds their hues apart, for bands that must be told apart */
+function inksOn(board,P0,n,spread){
+  const ok=c=>apart(c,board)>(spread?0.2:0.12), out=[];
+  for(const c of P0.slice(1)) if(ok(c)&&(!spread||out.every(o=>{const h=hueOf(c),k=hueOf(o);
+    return h===null||k===null||Math.min(Math.abs(k-h),360-Math.abs(k-h))>45}))) out.push(c);
+  for(const c of INKS.slice().sort(()=>Math.random()-0.5)) if(out.length<n&&ok(c)) out.push(c);
+  while(out.length<n) out.push(out[out.length-1]||(lum(board)<0.5?'#f2f4f7':'#171717'));
+  return out.slice(0,n);
+}
+/* set the nozzle, the flow and the colours; returns the sentence the recipe card uses for it */
+const maybeCoil=(lo,hi,p)=>{ if(Math.random()<p){ setSlider('coil',+rnd(lo,hi).toFixed(2)); return true; } return false; };
+function useMedium(m,P0,board){
+  if(m==='pen'){ setMode('pen'); cols=oneCol(inkOn(board,P0.slice(1)));
+    return 'A pen: the same thin line at any speed, so it can draw for a minute and a half without filling in.'; }
+  if(m==='solid'){ setMode('solid'); setSlider('flow',+rnd(4,5.5).toFixed(1)); cols=oneCol(inkOn(board,P0.slice(1)));
+    return maybeCoil(0.4,0.9,0.45)
+      ? 'One hole, wide open, and thick enough to coil: the stream buckles into loops where the swing dawdles and pulls straight where it races.'
+      : 'One hole, wide open: a broad stroke that swells where the swing slows and thins as the can runs dry.'; }
+  if(m==='ribbon'){ setMode('ribbon'); setSlider('flow',+rnd(3.2,5.5).toFixed(1)); setSlider('twist',+rnd(0.03,0.14).toFixed(2));
+    const c=inksOn(board,P0,2,true); cols=[c[0],c[1],c[0],c[1],c[0],c[1]];
+    return maybeCoil(0.35,0.85,0.4)
+      ? 'A two-tone ribbon poured thick enough to coil: it buckles into loops at the ends of the swing and pulls straight through the middle.'
+      : 'A two-tone ribbon, wide open: the two colours wind round each other as the can turns on its string.'; }
+  if(m==='rake'){ const n=pick([3,4,5,6]); setMode(String(n)); setSlider('flow',+rnd(0.9,1.4).toFixed(1));
+    setSlider('gap',+rnd(1.8,4.6).toFixed(1)); setSlider('twist',+rnd(0.01,0.04).toFixed(2)); cols=inksOn(board,P0,6,true);
+    return maybeCoil(0.3,0.6,0.25)
+      ? n+' holes in a line on a bar, each stream thick enough to coil, and each coiling a step out of time with the next: the trails braid.'
+      : n+' holes in a line on a bar, running thin so the trails stay separate and braid instead of merging.'; }
+  setMode('marbled'); setSlider('flow',+rnd(4.4,6).toFixed(1)); setSlider('splat',+rnd(0.45,0.8).toFixed(2)); cols=inksOn(board,P0,6,false);
+  return 'Several paints tipped into one can and poured heavily, fast enough to fling droplets off the stream.';
+}
+const thick=m=>m!=='pen';
+/* which media suit which figure: a fat ribbon buries a dense Lissajous, a pen is lost on a three-panel row */
+const MEDIA={
+  harmonograph:['pen','pen','pen','ribbon','rake','solid','marbled'],
+  lissajous:['pen','pen','pen','rake','rake','solid'],
+  twin:['pen','pen','rake','ribbon','marbled'],
+  lattice:['pen','pen','ribbon','ribbon','rake'],
+  rosette:['pen','pen','marbled'],
+  spiro:['pen','ribbon','ribbon','rake'],
+  spiral:['ribbon','ribbon','solid','rake','marbled'],
+  star:['pen','pen','pen','ribbon','rake'],
+  turntable:['pen','pen','ribbon','rake'],
+  triptych:['ribbon','ribbon','ribbon','marbled'],
+  overlay:['pen'],
+};
+const THEATRE_MIX=['harmonograph','harmonograph','lissajous','lissajous','twin','twin','lattice','lattice',
+  'spiral','spiral','star','star','turntable','turntable','triptych','triptych','rosette','spiro','overlay'];
+const STUDIO_MIX=['harmonograph','lissajous','twin','lattice','rosette','spiro','spiral','star','turntable','triptych','overlay'];
+const MOVERS=['turntable','triptych'];
+let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null, lastMed=null;
+function surprise(force){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
-  // the theatre wants the intricate two-pendulum figures; the studio button keeps a broader mix
-  const fam=pick(theatre?['harmonograph','harmonograph','lissajous','lissajous','lissajous','twin','twin','lattice','lattice','rake','turntable','turntable']
-                        :['harmonograph','lissajous','lissajous','twin','lattice','rosette','spiro','rake','ribbon','marbled','turntable']);
-  // the turntable family moves the board off the pivot; put it back for the others
-  if(axleMoved&&fam!=='turntable'){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }
+  const mix=theatre?THEATRE_MIX:STUDIO_MIX;
+  let fam=force||pick(mix);
+  if(!force&&fam===lastFam) fam=pick(mix);   // one re-roll: never the same figure twice running
+  lastFam=fam;
+  // the turntable and the panel row move the board off the pivot; put it back for the figures that don't
+  if(axleMoved&&!MOVERS.includes(fam)){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }
   const pal=Math.floor(Math.random()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
-  const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a'], lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
-  const dark=fam==='turntable'||Math.random()<0.6; setBoardColour(pick(dark?darkBoards:lightBoards));
-  const one=fam==='harmonograph'||fam==='lissajous'||fam==='spiro'||fam==='twin'||fam==='lattice'||fam==='turntable';
-  if(one){ // a pen: pick the palette colour that contrasts with the board, or plain white/ink
-    const cand=P0.slice(1).filter(c=>dark?lum(c)>0.6:lum(c)<0.35); cols=[cand.length?pick(cand):(dark?'#f2f4f7':'#1a1a1a')].concat(P0.slice(2)); pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on')); }
-  const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2);
-  const steps=[]; let mode='pen', bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='', chain=[];
+  const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a','#101418','#1a1a1f'],
+        lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
+  const dark=fam==='turntable'||Math.random()<0.58; const board=pick(dark?darkBoards:lightBoards); setBoardColour(board);
+  let med=pick(MEDIA[fam]);
+  if(med===lastMed&&MEDIA[fam].length>1) med=pick(MEDIA[fam]);   // and not the same paint twice either
+  lastMed=med;
+  const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2); setSlider('gap',2); setSlider('coil',0);
+  const medLine=useMedium(med,P0,board);
+  const steps=[]; let bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='', chain=[], title='';
+  // a thick medium buries a long run, so it gets a shorter one: more air drag, fewer loops
+  const AIRK={pen:1,rake:1,ribbon:1.25,solid:1.3,marbled:1.05};   // a thick line needs fewer loops, a rake of thin ones does not
+  const air=(lo,hi)=>{ const k=AIRK[med]||1; setSlider('damp',+rnd(lo*k,hi*k).toFixed(3)); };
   const boardSwing=(ratio,angle,A)=>{ // board pendulum at a period ratio, swinging along `angle`, amplitude A, random phase
-    const L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.012,0.03);
+    const L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.010,0.020);
     const w2=Math.sqrt(G/L2), ph=rnd(0,TAU), ux=Math.cos(angle), uy=Math.sin(angle);
     bx=ux*A*Math.cos(ph); by=uy*A*Math.cos(ph); bvx=-ux*A*w2*Math.sin(ph); bvy=-uy*A*w2*Math.sin(ph);
     const phase=Math.abs(Math.cos(ph))<0.5?'as the board passes through the middle':Math.abs(Math.cos(ph))>0.85?'as the board reaches the end of its swing':'about a third of the way through the board\'s swing';
     steps.push(`Board str. ${K(L2.toFixed(2))} (period ratio ${ratio.toFixed(3)} to the can). First the board: pull the steel handle ${cm(A)} ${Math.abs(uy)>0.7?'straight down':Math.abs(ux)>0.7?'sideways':'diagonally'} and let go.`);
     return phase; };
-  if(fam==='harmonograph'){
-    const ratio=Math.random()<0.5?rnd(0.955,0.985):rnd(1.015,1.045); setSlider('damp',+rnd(0.014,0.028).toFixed(3));
-    const ph=boardSwing(ratio,Math.random()<0.6?Math.PI/2:rnd(0,TAU),rnd(0.25,0.4));
-    const A=rnd(0.35,0.5), a=rnd(0,TAU); cx=Math.cos(a)*A; cy=Math.sin(a)*A; const f=rnd(0,0.12); cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
-    steps.push(`Then the can: pull it ${cm(A)} out and let go with ${f<0.04?'no flick':'a slight sideways flick'}, ${ph}.`);
+  const circle=(A,frac)=>{ const w=Math.sqrt(G/P.L); cx=A; cy=0; cvx=0; cvy=A*w*frac; };   // a near-circular swing
+  if(fam==='harmonograph'){ title='Harmonograph';
+    const ratio=Math.random()<0.5?rnd(0.955,0.985):rnd(1.015,1.045); air(0.014,0.028);
+    const a=rnd(0,TAU);   // where the can is pulled out to
+    // the board has to swing ACROSS that line, not along it: along it, the two motions cancel to a streak
+    const ph=boardSwing(ratio,a+pick([1,-1])*rnd(Math.PI*0.3,Math.PI*0.7),rnd(0.26,0.4));
+    const A=rnd(0.38,0.52), w1=Math.sqrt(G/L);
+    const f=thick(med)?A*w1*rnd(0.3,0.6):rnd(0,0.12);   // a broad stroke needs an open figure, so it gets a real flick
+    cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
+    steps.push(`Then the can: pull it ${cm(A)} out and let go with ${f<0.04?'no flick':f<0.2?'a slight sideways flick':'a firm sideways flick, so it swings in an open ellipse rather than a line'}, ${ph}.`);
     why='The two strings differ by a few percent, so the swings drift in and out of step and the ellipse folds into crossed lobes.';
-  } else if(fam==='lissajous'){
-    const [a,b]=pick([[1,2],[2,3],[2,3],[3,4],[3,5],[4,5],[2,5],[5,6],[5,7]]); setSlider('damp',+rnd(0.012,0.025).toFixed(3));
-    const ph=boardSwing(a/b*(1+rnd(-0.006,0.006)),Math.PI/2,rnd(0.25,0.38));   // a touch off the exact ratio, so the figure slowly turns inside out
-    const A=rnd(0.35,0.48); cx=A; cy=rnd(-0.03,0.03); cvx=0; cvy=rnd(0,0.06);
+  } else if(fam==='lissajous'){ title='Lissajous';
+    const [a,b]=pick([[1,2],[2,3],[2,3],[3,4],[3,5],[4,5],[2,5],[5,6],[5,7]]); air(0.012,0.025);
+    const ph=boardSwing(a/b*(1+rnd(-0.006,0.006)),Math.PI/2,rnd(0.25,0.38));
+    const A=rnd(0.4,0.5); cx=A; cy=rnd(-0.03,0.03); cvx=0; cvy=rnd(0,0.06);
     steps.push(`Then the can: pull it ${cm(A)} to the right and let go gently, ${ph}.`);
     why=`Periods ${a}:${b}: a Lissajous figure. The release moment sets which of its shapes you get.`;
-  } else if(fam==='twin'){ // board at a near-rational ratio, can on an ellipse: lobed rosettes that evolve
-    const [a,b]=pick([[1,2],[1,3],[2,3],[3,4]]); setSlider('damp',+rnd(0.012,0.024).toFixed(3));
+  } else if(fam==='twin'){ title='Twin rosette';
+    const [a,b]=pick([[1,2],[1,3],[2,3],[3,4]]); air(0.012,0.024);
     const ph=boardSwing(a/b*(1+rnd(-0.012,0.012)),rnd(0,TAU),rnd(0.2,0.34));
-    const A=rnd(0.32,0.46), w1=Math.sqrt(G/L), f=A*w1*rnd(0.35,0.9); cx=A; cy=0; cvx=0; cvy=f;
+    const A=rnd(0.36,0.48), w1=Math.sqrt(G/L), f=A*w1*rnd(0.35,0.9); cx=A; cy=0; cvx=0; cvy=f;
     steps.push(`Then the can: pull it ${cm(A)} to the right and flick it upward as you let go (an ellipse), ${ph}.`);
     why=`Periods ${a}:${b} under an elliptical swing: the ellipse is folded into ${b} lobes that slowly turn as the ratio is a touch off exact.`;
-  } else if(fam==='lattice'){ // a harmonograph on a slowly turning board: the lobes drift round and cross-hatch
-    const ratio=Math.random()<0.5?rnd(0.95,0.985):rnd(1.015,1.05); setSlider('damp',+rnd(0.012,0.024).toFixed(3));
+  } else if(fam==='lattice'){ title=thick(med)?'Coil':'Lattice';
+    const ratio=Math.random()<0.5?rnd(0.95,0.985):rnd(1.015,1.05); air(0.012,0.024);
     setSlider('rpm',+(pick([-1,1])*rnd(0.15,0.5)).toFixed(2));
-    const ph=boardSwing(ratio,rnd(0,TAU),rnd(0.22,0.36));
-    const A=rnd(0.35,0.48), a=rnd(0,TAU), w1=Math.sqrt(G/L), f=A*w1*rnd(0,0.3); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
-    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(2))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board creeps round under the pen. Then the can: pull it ${cm(A)} out and let go with ${f<0.1?'no flick':'a slight flick'}, ${ph}.`);
-    why='A harmonograph on a slowly turning board: the crossed lobes drift round and hatch over each other.';
-  } else if(fam==='turntable'){ // a slow turntable, axle off to one side of the pivot: the loops walk round a hole, a colour per launch
-    // a shorter string packs more loops into the 100 s the whole thing gets: a third of a turn per colour, no pauses
-    setBoardColour(pick(['#0c0c0e','#14161a','#1a1a1f','#101418']));   // near-black, as the prints are: every ink shows
-    const L1=+rnd(0.9,1.1).toFixed(2); setSlider('L',L1); setSlider('damp',+rnd(0.005,0.008).toFixed(3)); const rpm=pick([-1,1])*0.6; setSlider('rpm',rpm); bd.ang=0;
+    const a=rnd(0,TAU);
+    const ph=boardSwing(ratio,a+pick([1,-1])*rnd(Math.PI*0.3,Math.PI*0.7),rnd(0.24,0.36));
+    const A=rnd(0.38,0.5), w1=Math.sqrt(G/L), f=A*w1*rnd(0,0.3); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
+    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(2))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board creeps round under the can. Then the can: pull it ${cm(A)} out and let go with ${f<0.1?'no flick':'a slight flick'}, ${ph}.`);
+    why=thick(med)?'A broad band laid on a slowly turning board: each pass lands beside the last and the whole thing coils like a spring seen end on.'
+                  :'A harmonograph on a slowly turning board: the crossed lobes drift round and hatch over each other.';
+  } else if(fam==='spiral'){ title='Spiral';
+    setSlider('damp',+rnd(0.028,0.055).toFixed(3)); setSlider('L2',1.05); P.damp2=0.2;
+    const A=rnd(0.42,0.54); circle(A,rnd(0.96,0.995));
+    steps.push(`Board still. Pull the can ${cm(A)} to the right and flick it hard along the edge as you let go, so it swings in a near-perfect circle.`);
+    why='A circular swing that dies away: each loop is a little smaller than the last, so the line winds inward in even rings, like the grooves of a record.';
+  } else if(fam==='triptych'){ title='Panels';
+    const n=pick([2,3,3,3,4]);
+    // lay the row along whichever way the board is longer: across a desktop screen, down a phone's
+    const down=Bm.h>Bm.w*1.15, along=down?Bm.h:Bm.w, across=down?Bm.w:Bm.h;
+    const span=Math.min(along,4.2)*0.8, stepx=span/n;
+    const R=Math.max(0.11,Math.min(stepx*0.42,across*0.40)); const L1=+Math.max(0.6,Math.min(1.7,0.62+R*1.7)).toFixed(2);
+    setSlider('L',L1); setSlider('damp',+rnd(0.042,0.062).toFixed(3)); setSlider('L2',1.05); P.damp2=0.2;
+    const w=Math.sqrt(G/L1), f=R*w*rnd(0.95,0.99), per=+rnd(24,30).toFixed(1);
+    if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2};
+    const home=[axleMoved.x,axleMoved.y], dxs=[];
+    for(let i=0;i<n;i++){ const d=-span/2+stepx*(i+0.5); dxs.push(down?[axleMoved.x,d]:[d,axleMoved.y]); }
+    const sets=[]; for(let i=0;i<n;i++){ const c=inksOn(board,P0,2+i*2,true); sets.push(med==='marbled'?inksOn(board,P0,6,false):[c[c.length-2],c[c.length-1]]); }
+    offsetBoard(dxs[0][0],dxs[0][1]); cols=med==='marbled'?sets[0]:[sets[0][0],sets[0][1],sets[0][0],sets[0][1],sets[0][0],sets[0][1]];
+    cx=R; cy=0; cvx=0; cvy=f;
+    for(let i=1;i<n;i++){ const s=sets[i]; chain.push({t:per,move:dxs[i],cols:med==='marbled'?s:[s[0],s[1],s[0],s[1],s[0],s[1]],cx:R,cy:0,cvx:0,cvy:f}); }
+    chain.push({t:per,move:home,stop:true});
+    steps.push(`Pull the can ${cm(R)} out and flick it round for a circle; after ${Math.round(per)} s catch it, slide the board a panel's width ${down?'down':'along'} by its brass handle, change colours and go again. ${n} panels in a ${down?'column':'row'}.`);
+    why='The board is carried along between swings, so each dying circle lands on its own patch and the row reads as a set rather than one crowded picture.';
+  } else if(fam==='star'){ title='Star';
+    /* Goold set this out in 1909 from a table of harmonograph figures, and it holds exactly. With BOTH
+       pendulums swinging in circles at a period ratio a:b, turning them opposite ways gives a+b points
+       facing outward; turning them the same way gives b-a nodes facing inward. The points close to sharp
+       cusps just when the two amplitude-times-frequency products match, so that ratio is the control. */
+    const [a,b]=pick([[1,2],[1,3],[1,4],[2,3],[2,3],[3,4],[4,5],[2,5],[3,5],[3,8],[4,7],[2,9]]);
+    setSlider('damp',+rnd(0.005,0.011).toFixed(3));
+    const ratio=a/b, L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.005,0.011);
+    const w1=Math.sqrt(G/L), w2=Math.sqrt(G/L2);
+    const counter=Math.random()<0.85, s2=counter?-1:1, pts=counter?a+b:Math.abs(b-a);
+    // k = (A1 w1)/(A2 w2): 1 is the cusp, below it the points stay looped, above it they turn inside out
+    const k=Math.random()<0.7?rnd(0.93,1.07):(Math.random()<0.72?rnd(0.55,0.82):rnd(1.3,1.7));
+    let A1=rnd(0.26,0.34), A2=Math.min(0.52,Math.max(0.06,A1*w1/(w2*k)));
+    const tot=A1+A2; if(tot>0.54){ const sc=0.54/tot; A1*=sc; A2*=sc; }
+    bx=A2; by=0; bvx=0; bvy=s2*A2*w2;
+    cx=A1; cy=0; cvx=0; cvy=A1*w1;
+    steps.push(`Board str. ${K(L2.toFixed(2))} (period ratio ${a}:${b} to the can). First the board: pull the steel handle ${cm(A2)} out and flick it round the ${s2<0?'anticlockwise':'clockwise'} way, so it swings in a circle rather than a line.`);
+    steps.push(`Then the can: pull it ${cm(A1)} out and flick it round the clockwise way, also a circle. Both must be real circles; a straight pull gives a blurred mixture of both figures instead.`);
+    why=`Periods ${a}:${b}, the two circles turning ${counter?'opposite ways, which puts '+pts+' points on the outside':'the same way, which puts '+pts+' node'+(pts===1?'':'s')+' on the inside'}. ${k<0.85?'The amplitudes sit below the cusp threshold, so the points stay as open loops.':k<1.12?'The amplitudes sit right on the cusp threshold, so the loops close into sharp points.':'The amplitudes sit past the cusp threshold, so the loops turn inside out.'}`;
+  } else if(fam==='turntable'){ title='Turntable';
+    setBoardColour(pick(['#0c0c0e','#14161a','#1a1a1f','#101418']));
+    const L1=+rnd(0.9,1.1).toFixed(2); setSlider('L',L1); setSlider('damp',+rnd(0.005,0.009).toFixed(3));
+    const rpm=+(pick([-1,1])*rnd(0.5,0.8)).toFixed(2); setSlider('rpm',rpm); bd.ang=0; setSlider('L2',1.05); P.damp2=0.2;
     const D=+rnd(0.28,0.38).toFixed(2), a=+(D*rnd(0.55,0.7)).toFixed(2), b=+(a*rnd(0.6,0.85)).toFixed(2), th=rnd(0,TAU);
     if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2}; offsetBoard(-D*Math.cos(th),-D*Math.sin(th));
     const w1=Math.sqrt(G/L1), f=b*w1; cx=a; cy=0; cvx=0; cvy=f;
-    const bands=3, band=+(120/(Math.abs(rpm)*6)).toFixed(1), gap=0;
-    // the colours must tell apart where the bands cross: palette colours if their hues are well spread, else vivid inks
-    const hue=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(d<40) return null; let x=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; return ((x*60)+360)%360;};
-    const spread=[]; for(const c of P0.slice(1)){ const h=hue(c); if(h!==null&&lum(c)>0.3&&spread.every(o=>Math.min(Math.abs(hue(o)-h),360-Math.abs(hue(o)-h))>50)) spread.push(c); }
-    const inks=['#ff4a3c','#3ddc84','#4a8cff','#ffd166','#ff5fd2','#2ee6ff','#b8ff2e','#ff9f1c'].sort(()=>Math.random()-0.5);
-    let cs=spread.length>=bands?spread.slice(0,bands):inks.slice(0,bands);
+    const bands=pick([2,3,3,3,4]), band=+(60/(Math.abs(rpm)*bands)).toFixed(1);   // the bands share one full turn
+    const cs=inksOn(boardCol,P0,bands,true);
     cols[0]=cs[0]; for(let i=1;i<bands;i++) chain.push({t:band,cx,cy,cvx,cvy,col:cs[i]}); chain.push({t:band,stop:true});
-    steps.push(`Turn ${K(Math.abs(rpm).toFixed(1))} ${rpm<0?'anticlockwise':'clockwise'}; the board is moved so its centre (the axle) sits ${cm(D)} from the pivot. Pull the can ${cm(a)} out and flick it sideways so it swings in a fat ellipse. After ${Math.round(band)} s (a third of a turn) catch it, change colour and launch it again the same way at once: ${bands} colours, 100 s in all.`);
-    why='The pen swings round the pivot while the board creeps round its own axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is.';
-  } else if(fam==='rosette'){
-    mode=Math.random()<0.5?'pen':'ribbon'; setSlider('damp',+rnd(0.015,0.035).toFixed(3)); setSlider('twist',mode==='ribbon'?+rnd(0.05,0.25).toFixed(2):0); setSlider('L2',1.05);
-    const A=rnd(0.35,0.5), f=rnd(0.35,0.75); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Turn ${K(Math.abs(rpm).toFixed(1))} ${rpm<0?'anticlockwise':'clockwise'}; the board is moved so its centre (the axle) sits ${cm(D)} from the pivot. Pull the can ${cm(a)} out and flick it sideways so it swings in a fat ellipse. After ${Math.round(band)} s (${bands===2?'half':bands===3?'a third':'a quarter'} of a turn) catch it, change colour and launch it again the same way at once: ${bands} colours, one full turn of the board in all.`);
+    why='The can swings round the pivot while the board creeps round its own axle, so every loop lands a little further round: the loops walk in a ring and leave a hole where the axle is.';
+  } else if(fam==='rosette'){ title='Rosette';
+    air(0.010,0.019); setSlider('L2',1.05); P.damp2=0.2;
+    const A=rnd(0.44,0.54), w1=Math.sqrt(G/L), f=A*w1*rnd(0.45,0.8); cx=A; cy=0; cvx=0; cvy=f;
     steps.push(`Board still. Pull the can ${cm(A)} to the right and flick it upward as you let go, so it swings in an ellipse.`);
     why='A wide elliptical swing on a real pendulum precesses: the ellipse turns a little each loop.';
-  } else if(fam==='spiro'){
-    setSlider('damp',+rnd(0.015,0.03).toFixed(3)); setSlider('rpm',+pick([-1,1])*rnd(0.4,1.8).toFixed(1)); setSlider('L2',1.05);
-    const A=rnd(0.3,0.45), f=rnd(0.2,0.6); cx=A; cy=0; cvx=0; cvy=f;
-    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(1))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board turns under the pen. Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
-    why='A turntable under a swinging pen: the ellipse is wound round the centre like a spirograph.';
-  } else if(fam==='rake'){
-    mode=String(pick([3,4,5,6])); setSlider('damp',+rnd(0.03,0.06).toFixed(3)); setSlider('twist',+rnd(0.02,0.08).toFixed(2)); setSlider('gap',+rnd(1.4,3).toFixed(1)); setSlider('flow',+rnd(1.5,2.5).toFixed(1)); setSlider('L2',1.05);
-    const A=rnd(0.35,0.48), f=rnd(0.3,0.7); cx=A; cy=rnd(-0.05,0.05); cvx=rnd(0,0.15); cvy=f;
-    steps.push(`Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
-    why=`${mode} holes in a line: the trails bunch along the bar and fan out across it, and the slow twist makes them cross.`;
-  } else if(fam==='ribbon'){
-    mode='ribbon'; setSlider('damp',+rnd(0.03,0.06).toFixed(3)); setSlider('twist',+rnd(0.05,0.3).toFixed(2)); setSlider('flow',+rnd(1.5,3).toFixed(1)); setSlider('L2',1.05);
-    if(Math.random()<0.5){ const ph=boardSwing(rnd(0.93,0.99),rnd(0,TAU),rnd(0.15,0.3)); steps[steps.length-1]+=' '; }
-    const A=rnd(0.35,0.5), f=rnd(0.3,0.8); cx=A; cy=0; cvx=0; cvy=f;
-    steps.push(`Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
-    why='A two-tone ribbon that turns as it flows, on a wide precessing ellipse.';
-  } else { // marbled splatter
-    mode='marbled'; setSlider('damp',+rnd(0.06,0.1).toFixed(3)); setSlider('flow',+rnd(5,7).toFixed(1)); setSlider('splat',+rnd(0.6,0.9).toFixed(2)); setSlider('L',+rnd(1.2,1.6).toFixed(2)); setSlider('L2',1.05);
-    const A=rnd(0.3,0.45), a=rnd(0,TAU), f=rnd(0.9,1.5); cx=Math.cos(a)*A; cy=Math.sin(a)*A; cvx=-Math.sin(a)*f; cvy=Math.cos(a)*f;
-    steps.push(`Pull the can ${cm(A)} out and flick it hard as you let go, fast enough to fling droplets.`);
-    why='Heavy flow, a marbled stream that changes colour as it pours, and paint flung off the fast parts.';
+  } else if(fam==='spiro'){ title='Spirograph';
+    air(0.015,0.03); setSlider('rpm',+(pick([-1,1])*rnd(0.4,1.6)).toFixed(1)); setSlider('L2',1.05); P.damp2=0.2;
+    const A=rnd(0.34,0.48), f=rnd(0.25,0.7); cx=A; cy=0; cvx=0; cvy=f;
+    steps.push(`Turn ${K(Math.abs(P.rpm).toFixed(1))} ${P.rpm<0?'anticlockwise':'clockwise'}: the board turns under the can. Pull the can ${cm(A)} to the right and flick it upward as you let go.`);
+    why='A turntable under a swinging can: the ellipse is wound round the centre like a spirograph.';
+  } else { title='Splattered'; // overlay: a drawn figure first, then a hard flick of loose paint over it
+    setSlider('damp',+rnd(0.013,0.022).toFixed(3));
+    const [a,b]=pick([[1,2],[2,3],[3,4],[3,5]]);
+    const ph=boardSwing(a/b*(1+rnd(-0.006,0.006)),Math.PI/2,rnd(0.26,0.36));
+    const A=rnd(0.42,0.52); cx=A; cy=0; cvx=0; cvy=rnd(0,0.05);
+    const sc=inksOn(board,P0,6,false), ang=rnd(0,TAU), sp=rnd(1.1,1.6);
+    chain.push({t:+rnd(46,58).toFixed(0),mode:'marbled',set:{flow:+rnd(5.5,7).toFixed(1),splat:+rnd(0.8,0.95).toFixed(2),damp:+rnd(0.09,0.13).toFixed(3)},
+      cols:sc,cx:Math.cos(ang)*0.44,cy:Math.sin(ang)*0.44,cvx:-Math.sin(ang)*sp,cvy:Math.cos(ang)*sp});
+    chain.push({t:40,stop:true});
+    steps.push(`Then the can: pull it ${cm(A)} to the right and let go gently, ${ph}. Let the figure draw for about a minute.`);
+    steps.push(`Now change the can: several paints tipped in together, ${K('Flow')} wide open and ${K('Splat')} near the top. Pull it out and flick it hard across the drawing.`);
+    why='A drawn figure first, then loose paint thrown over it: the thin lines still read underneath the droplets, which is how a lot of pendulum work is finished.';
   }
-  setMode(mode);
-  steps.unshift(`Nozzle ${K($('#mode').selectedOptions[0].textContent)}, paint ${K(P0[0])}${one?' (one colour)':''}, String ${K(P.L.toFixed(2))}, Air ${K(P.damp.toFixed(3))}${P.twist?', Twist '+K(P.twist.toFixed(2)):''}${P.splat?', Splat '+K(P.splat.toFixed(2)):''}.`);
+  steps.unshift(medLine);
+  steps.unshift(`Nozzle ${K($('#mode').selectedOptions[0].textContent)}, paint ${K(P0[0])}, String ${K(P.L.toFixed(2))}, Air ${K(P.damp.toFixed(3))}${P.twist?', Twist '+K(P.twist.toFixed(2)):''}${P.splat?', Splat '+K(P.splat.toFixed(2)):''}${P.coil?', Coil '+K(P.coil.toFixed(2)):''}${P.gap!==0.02&&nozzles()>1?', Gap '+K((P.gap*100).toFixed(1)):''}.`);
   steps.push(why);
   // place both pendulums and go
   const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
   driveNow(cx,cy,cvx,cvy); setChain(chain);
-  const title={harmonograph:'Harmonograph',lissajous:'Lissajous',twin:'Twin rosette',lattice:'Lattice',rosette:'Rosette',spiro:'Spirograph',rake:'Rake',ribbon:'Ribbon',marbled:'Splatter',turntable:'Turntable'}[fam]+' #'+(++surpriseCount);
+  title=title+' #'+(++surpriseCount);
   $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
   $('#recipe').hidden=autoplay||phone()||theatre; $('#theatreTitle').textContent=title; if(!theatre) toast(title+(autoplay?' · auto-play':''),3000);
@@ -1045,7 +1220,7 @@ $('#surprise').addEventListener('click',surprise);
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
-$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); f(); showRecipe(k); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); setSlider('coil',0); f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
@@ -1196,7 +1371,7 @@ $('#mode').addEventListener('change',e=>{
   else if(nozzles()===1&&was>1&&+tw.value<0.1){tw.value=0.15;P.twist=0.15;tw.nextElementSibling.textContent='0.15'}
 });
 $('#auto').addEventListener('change',e=>P.auto=e.target.checked);
-for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v<0.01?v.toFixed(3):v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpmAbs',v=>v>0?v.toFixed(1):'off'],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
+for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed(2)],['damp','damp',v=>v<0.01?v.toFixed(3):v.toFixed(2)],['swing','swing',v=>v.toFixed(2)],['rpm','rpmAbs',v=>v>0?v.toFixed(1):'off'],['twist','twist',v=>v.toFixed(2)],['gap','gapcm',v=>v.toFixed(1)],['splat','splat',v=>v.toFixed(2)],['coil','coil',v=>v.toFixed(2)],['L2','L2',v=>v.toFixed(2)]]){
   const el=$('#'+id), out=el.nextElementSibling;
   el.addEventListener('input',()=>{if(key==='gapcm')P.gap=+el.value/100;else if(key==='rpmAbs')P.rpm=+el.value*rpmDir;else P[key]=+el.value;out.textContent=fmt(+el.value)});
 }
