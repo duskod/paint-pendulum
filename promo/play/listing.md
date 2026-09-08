@@ -17,6 +17,7 @@ Two rooms:
 • Surprise me composes a pattern for you and shows the recipe to repeat it by hand.
 • Worked examples demonstrate the pull with a ghost hand, then draw the pattern.
 • Save exports the board as a picture straight to your share sheet.
+• Screen saver: pick Paint Pendulum under Settings > Display > Screen saver and the theatre plays while your phone charges or docks. Works on Android TV too.
 
 Runs entirely on your phone. No account, no ads, no data collected, no permissions.
 
@@ -35,7 +36,7 @@ Runs entirely on your phone. No account, no ads, no data collected, no permissio
 No violence, no user content, no sharing of location, no purchases → Everyone.
 
 ## Files
-- Upload bundle: ~/code/pendulum-android/app-release-bundle.aab (versionCode 1, 1.0.0)
+- Upload bundle: ~/code/pendulum-android/app-release-bundle.aab (versionCode 2, 1.1.0)
 - Test APK (sideload): ~/code/pendulum-android/app-release-signed.apk
 - Upload key: ~/.config/pendulum-android/upload.keystore (alias pendulum; passwords in keystore.env — BACK IT UP, and enrol in Play App Signing when creating the app so Google holds the release key). SHA-256 18:7D:81:11:…:CF:05:E3
 - Screenshots: promo/play/screenshot-*.png (1080×2160) · Feature graphic: promo/play/feature-graphic-1024x500.png · Icon: promo/play/icon-512.png
