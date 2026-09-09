@@ -118,6 +118,9 @@
   #recipe ol{margin:0;padding-left:18px;display:grid;gap:4px}
   #recipe li::marker{color:var(--muted)}
   #recipe .k{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:0 5px;color:var(--ink);white-space:nowrap}
+  #recipe header b{cursor:pointer}
+  @media (max-width:720px){ #recipe.mini ol{display:none} #recipe.mini header{margin-bottom:0} #recipe header b::after{content:" \25BE";color:var(--muted)} #recipe.mini header b::after{content:" \25B8"}
+    #recipe.mini header b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0} }
   @media (max-width:720px){ #recipe{top:auto;bottom:calc(64px + env(safe-area-inset-bottom));left:8px;width:calc(100vw - 16px);max-height:40vh;overflow:auto;font-size:12px} }
   #theatreBar{display:none;position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);align-items:center;gap:8px;padding:8px 12px;background:rgba(24,20,16,.92);border:1px solid var(--tray-edge);border-radius:999px;z-index:4;transition:opacity .4s;box-shadow:0 12px 36px rgba(0,0,0,.5);max-width:calc(100vw - 20px);flex-wrap:wrap;justify-content:center}
   #theatreBar #theatreTitle{font:600 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 6px}
@@ -133,7 +136,7 @@
   #galleryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
   #galleryGrid figure{margin:0;cursor:pointer;border:1px solid var(--tray-edge);border-radius:8px;overflow:hidden;background:#000}
   #galleryGrid figure:hover{border-color:var(--accent)}
-  #galleryGrid img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover}
+  #galleryGrid img{display:block;width:100%;aspect-ratio:2/1;object-fit:contain;background:#000}
   #galleryGrid figcaption{font:500 11px var(--mono);color:var(--muted);padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
   #galleryStage{position:relative;touch-action:pan-y;user-select:none}
   #galleryImg{display:block;max-width:100%;max-height:calc(100vh - 160px);margin:0 auto;border:1px solid var(--tray-edge);border-radius:6px}
@@ -188,6 +191,8 @@
     .q:disabled{opacity:.4}
     .q.on{background:var(--accent);color:#08201f;border-color:transparent}
     #tray:not(.hidden)+* ~ #quick{border-top-color:transparent}
+    body.viewing #quick{display:flex!important}   /* movie mode on a phone: the picture clears, the bar stays in reach */
+    .readout{display:none}                          /* no room beside the title */
   }
   @media (prefers-reduced-motion:reduce){#tray,#hint{transition:none}}
 </style>
@@ -258,7 +263,7 @@
 </aside>
 <button id="tab" aria-controls="tray">Hide</button>
 <nav id="quick" aria-label="Quick actions">
-  <button class="q" id="qCatch">Catch</button>
+  <button class="q" id="qClear">Clear</button>
   <button class="q" id="qUndo" disabled>Undo</button>
   <button class="q" id="qPlay">Surprise</button>
   <button class="q" id="qSave">Save</button>
@@ -266,6 +271,7 @@
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
+<button id="lost" hidden class="b primary" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:12px 18px;font-size:14px;box-shadow:0 12px 36px rgba(0,0,0,.5)">The board is off screen &middot; bring it back</button>
 <aside id="recipe" hidden aria-label="How to reproduce this example">
   <header><b id="recipeTitle"></b><button class="b sm" id="recipeClose">Close</button></header>
   <ol id="recipeSteps"></ol>
@@ -295,7 +301,7 @@
       </div>
       <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px">
         <span id="galleryMeta" class="lbl" style="text-transform:none;letter-spacing:.02em"></span>
-        <span style="display:flex;gap:6px"><button class="b" id="galleryRecipe">Recipe</button><button class="b primary" id="gallerySave">Save</button><button class="b danger" id="galleryDelete">Delete</button><button class="b" id="galFullBtn" title="The picture alone, edge to edge (f). Tap or move to bring the buttons back; Esc leaves">Full</button><button class="b" id="galleryBack">Back</button></span>
+        <span style="display:flex;gap:6px"><button class="b" id="galleryRecipe" title="The settings and gestures that made it">How to</button><button class="b primary" id="gallerySave">Save</button><button class="b danger" id="galleryDelete">Delete</button><button class="b" id="galFullBtn" title="The picture alone, edge to edge (f). Tap or move to bring the buttons back; Esc leaves">Full</button><button class="b" id="galleryBack">Back</button></span>
       </div>
     </div>
   </section>
@@ -320,6 +326,8 @@
           <dt>Movie mode</dt><dd>on by default: five seconds after a pattern starts with nothing touched, the same happens by itself; move the mouse, touch or press a key to come back</dd>
           <dt>Double-click the board</dt><dd>full screen</dd>
           <dt>Drag the tray grip</dt><dd>move the tray; drop it near an edge to dock, double-click the grip to reset</dd>
+          <dt>Phone bar</dt><dd>Clear, Undo, Surprise, Save, Theatre, More. Tap the board to catch the can. Surprise and the Examples start on a clean board; two Undos bring the old picture back</dd>
+          <dt>If the board wanders off</dt><dd>a button appears in the middle of the screen to bring it back. Fit board (in the tray) also squares the board and recentres the view</dd>
           <dt>Set as screen saver (Android app)</dt><dd>opens the phone's Screen saver settings; choose Paint Pendulum there and when it should start (charging, docked)</dd>
           <dt>Theatre</dt><dd>sit back: patterns compose themselves on a board held still, full screen, nothing else on show. Move for the bar: Next, Pause, Save, Studio. Keys there: <kbd>n</kbd> or <kbd>→</kbd> next, <kbd>p</kbd> pause, <kbd>Esc</kbd> back to the studio</dd>
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
@@ -557,13 +565,15 @@ function step(dt){
   if(grabbed){ if(!bgrab&&(Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); return; }
   if(running){ stepPend(can,P.L,P.damp,dt); if(!bgrab&&(P.swing>0||Math.hypot(bd.p[0],bd.p[1])>1e-4||Math.hypot(bd.v[0],bd.v[1])>1e-4)) stepPend(bd,P.L2,P.damp2,dt); }
   bd.ang+=P.rpm*TAU/60*dt;
+  if(straighten){ const target=Math.round(bd.ang/TAU)*TAU, d=target-bd.ang;   // ease the board back to square once a pattern is over
+    if(P.rpm||Math.abs(d)<2e-3){ if(!P.rpm) bd.ang=target; straighten=false; } else bd.ang+=d*Math.min(1,3*dt); }
   if(relaunch.length){ chainT+=dt; if(chainT>=relaunch[0].t){ const r=relaunch.shift(); chainT=0;
     if(r.move) offsetBoard(r.move[0],r.move[1]);
     if(r.mode) setMode(r.mode);
     if(r.set) for(const k in r.set) setSlider(k,r.set[k]);
     if(r.cols) cols=r.cols.slice();
     if(r.col) cols[0]=r.col;
-    if(r.stop){ restCan(); relaunch=[]; } else if(r.pause){ restCan(); } else { driveNow(r.cx,r.cy,r.cvx,r.cvy); }
+    if(r.stop){ restCan(); relaunch=[]; settleBoard(); } else if(r.pause){ restCan(); } else { driveNow(r.cx,r.cy,r.cvx,r.cvy); }
     return; } }
   if(!running) return;
   T+=dt;
@@ -609,7 +619,7 @@ function step(dt){
   lastAng=ang;
   const amp=Math.hypot(can.p[0],can.p[1]),spd=Math.hypot(can.v[0],can.v[1]);
   const bamp=Math.hypot(bd.p[0],bd.p[1]), bspd=Math.hypot(bd.v[0],bd.v[1]);
-  if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false;relaunch=[]}}else stillFor=0;
+  if(amp<0.012&&spd<0.05&&bamp<0.012&&bspd<0.05){stillFor+=dt;if(stillFor>0.6&&P.auto){flowing=false;running=false;relaunch=[];settleBoard()}}else stillFor=0;
   // Only patterns the machine composed are stopped this way; a swing you launched yourself runs as long as it likes.
   if(genPattern&&flowing&&segT-covT>=2){
     covT=segT; const m=inkStats();
@@ -620,7 +630,7 @@ function step(dt){
       let done=segT>floorT&&peakDetail>0&&m.detail<0.55*peakDetail;          // the passes have fused
       if(!done&&segT>26&&m.cov>0.02){ let b=null; for(const e of covLog) if(segT-e[0]>=14) b=e;
         if(b&&(m.cov-b[1])/m.cov<0.03) done=true; }                          // nothing new is appearing
-      if(done){ if(relaunch.length) chainT=relaunch[0].t; else { flowing=false; running=false; } }
+      if(done){ if(relaunch.length) chainT=relaunch[0].t; else { flowing=false; running=false; settleBoard(); } }
     }
   }
 }
@@ -702,7 +712,7 @@ function render(){
     ctx.strokeStyle='rgba(241,236,226,.6)'; ctx.lineWidth=2; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.arc(cp0[0],cp0[1],26,0,TAU); ctx.stroke(); ctx.setLineDash([]);
     if(L>1){ const ux=vx/L,uy=vy/L,ex=cp0[0]+vx,ey=cp0[1]+vy; ctx.strokeStyle='#e6cb94'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cp0[0],cp0[1]); ctx.lineTo(ex,ey); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12-uy*7,ey-uy*12+ux*7); ctx.moveTo(ex,ey); ctx.lineTo(ex-ux*12+uy*7,ey-uy*12-ux*7); ctx.stroke(); }
-    ctx.fillText('released here, flicked this way',cp0[0],cp0[1]-36); ctx.restore(); } }
+    ctx.fillText('released here, flicked this way',clampX(cp0[0],110),cp0[1]-36); ctx.restore(); } }
   if(demo){
     const el=performance.now()-demo.t0, pulling=el<demo.dur;
     ctx.save(); ctx.lineCap='round';
@@ -717,14 +727,15 @@ function render(){
     if(demo.phase==='board'){
       const hr=pushRect(), hx=hr.x+hr.w/2+bd.p[0]*ppm, hy=hr.y+hr.h/2+bd.p[1]*ppm;   // the handle rides with the board
       ctx.strokeStyle='rgba(241,236,226,.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,26,0,TAU); ctx.stroke();
-      ctx.fillText(pulling?'first, pulling the board out by its steel handle…':'now let go: the board swings on its own',hx,hy-36);
+      ctx.fillText(pulling?'first, pulling the board out by its steel handle…':'now let go: the board swings on its own',clampX(hx,170),hy-36);
     }
-    else if(pulling) ctx.fillText('now pulling the can out…',cp[0],cp[1]-36);
-    else { ctx.fillText(demo.dB?'flick it this way and let go as the board passes the middle':'flick it this way and let go',cp[0],cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],''); }
+    else if(pulling) ctx.fillText('now pulling the can out…',clampX(cp[0],90),cp[1]-36);
+    else { ctx.fillText(demo.dB?'flick it this way and let go as the board passes the middle':'flick it this way and let go',clampX(cp[0],demo.dB?190:100),cp[1]-36); const vv=toBoard(demo.cvx,demo.cvy), v0=toBoard(0,0); arrow(cp[0],cp[1],vv[0]-v0[0],vv[1]-v0[1],''); }
     ctx.restore();
   }
   ctx.restore();   // end view pan
 }
+const clampX=(x,half)=>Math.max(half,Math.min(W-half,x));   // keep a caption inside the screen
 function drawCan(x,y){
   const r=Math.min(W,H)<600?14:17, a=twA;
   ctx.save(); ctx.translate(x,y);
@@ -864,6 +875,10 @@ let demo=null, after=null;   // `after`: the launch arrow lingers on the board f
 let relaunch=[], chainT=0;
 function setChain(list){ relaunch=list; chainT=0; }
 function restCan(){ running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; qprev=null; sprev=[]; }
+/* a pattern has run its course in the studio: a spinning board would go on spinning with nothing on screen to stop
+   it, so the turntable goes off and the board eases back to square (the theatre and auto-play manage their own) */
+let straighten=false;
+function settleBoard(){ if(theatre||autoplay) return; if(P.rpm) setSlider('rpm',0); if(Math.abs(bd.ang)>1e-3) straighten=true; }
 function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   cancelGrab(); stopCan();
   const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
@@ -943,8 +958,10 @@ const RECIPES={
     'Three dying circles, each on its own patch of board. Moving the board between swings is what turns one crowded picture into a row that reads as a set.'],
 };
 function showRecipe(key){ const r=RECIPES[key]; if(!r) return;
-  const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':''; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); $('#recipe').hidden=false; }
+  const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':''; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); recipeMini(); $('#recipe').hidden=false; }
 $('#recipeClose').addEventListener('click',()=>{$('#recipe').hidden=true});
+$('#recipeTitle').addEventListener('click',()=>{ if(phone()) $('#recipe').classList.toggle('mini'); });
+const recipeMini=()=>$('#recipe').classList.toggle('mini',phone());   // on a phone the card opens folded, so it does not cover the board
 const PRESETS={
   harmonograph(){ // pen on the can swinging along x, board swinging along y at a slightly faster period: the two beat
     setMode('pen'); setBoardColour('#1f4e9c'); cols=['#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7','#f2f4f7']; pairSel=-1; [...$('#pairs').children].forEach(c=>c.classList.remove('on'));
@@ -1074,8 +1091,10 @@ const THEATRE_MIX=['harmonograph','harmonograph','lissajous','lissajous','twin',
 const STUDIO_MIX=['harmonograph','lissajous','twin','lattice','rosette','spiro','spiral','star','turntable','triptych','overlay'];
 const MOVERS=['turntable','triptych'];
 let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null;
+function freshBoard(){ if(!swings.length) return; remember_state(); swings=[]; cur=null; rebuild(); listSwings(); }
 function surprise(force){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
+  if(!theatre&&!autoplay) freshBoard();   // pressed by hand: a clean board, the old picture one Undo away (twice)
   resetCoverage(); genPattern=true; showT=0;
   const mix=theatre?THEATRE_MIX:STUDIO_MIX;
   let fam=force||pick(mix);
@@ -1275,7 +1294,7 @@ $('#surprise').addEventListener('click',surprise);
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
-$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); setSlider('coil',0); resetCoverage(); genPattern=true; f(); showRecipe(k); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); freshBoard(); setSlider('coil',0); resetCoverage(); genPattern=true; f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
@@ -1286,7 +1305,7 @@ function remember_state(){ history.push(swings.slice()); if(history.length>30) h
 function stopCan(){ relaunch=[]; grabbed=false; running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]; bd.p=[0,0,P.L2]; bd.v=[0,0,0]; sprev=[]; qprev=null; }
 function undoLast(){
   const prev=history.pop(); if(!prev) return;
-  stopCan(); swings=prev; cur=null; rebuild(); listSwings();
+  stopCan(); swings=prev; cur=null; rebuild(); listSwings(); angAcc=0; T=0;
   $('#undo').disabled=$('#qUndo').disabled=history.length===0;
 }
 /* clicking a swing chip opens its editor: the chip arms, the swing stays highlighted, and you can give it
@@ -1366,7 +1385,7 @@ async function saveBlob(blob,name){
   if(dl){ try{ await dl.save({filename:name,data:blob}); toast('Saved'); }catch(err){ if(err&&err.code!=='declined') toast('Could not save: '+(err.message||err.code||'unknown')); } return; }
   const file=new File([blob],name,{type:'image/png'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:SIGN.app,text:'Made with '+SIGN.app+' by '+SIGN.name+' \u00b7 https://'+SIGN.url+'/'});return}catch(e){}}
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast('Saved to your downloads');
 }
 /* inside the Android app: a button that opens Settings > Display > Screen saver, where Paint Pendulum can be picked.
    Chrome (and the app's browser tab) hands intent: URLs to Android; apps cannot set the screen saver themselves. */
@@ -1433,7 +1452,7 @@ for(const [id,key,fmt] of [['flow','flow',v=>v.toFixed(1)],['L','L',v=>v.toFixed
 $('#catch').addEventListener('click',catchCan);
 $('#clear').addEventListener('click',clearBoard);
 $('#undo').addEventListener('click',undoLast);
-$('#fit').addEventListener('click',()=>{Bm=null;pan={x:0,y:0};savePan();saveBoard();resize()});
+$('#fit').addEventListener('click',()=>{Bm=null;pan={x:0,y:0};bd.ang=0;straighten=false;if(P.rpm) setSlider('rpm',0);savePan();saveBoard();resize()});
 $('#save').addEventListener('click',save);
 $('#full').addEventListener('click',fullscreen);
 /* rig: the can, string, pivot and board handle. Hide it to see the painting on its own. */
@@ -1465,7 +1484,8 @@ function setTheatre(on,opts={}){
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
     holdAwake(true); wake(); track('theatre'); }
   else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false);
-    if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   /* a turntable pattern moved the board off the pivot: put it back */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
+    if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   /* a turntable pattern moved the board off the pivot: put it back */
+    bd.ang=0; if(P.rpm) setSlider('rpm',0); pan={x:0,y:0}; savePan();   /* the studio opens on a square, centred board, the turntable off */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
 function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); if(performance.now()<holdBar) return; stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
@@ -1541,7 +1561,7 @@ $('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'
 $('#galleryDelete').addEventListener('click',async()=>{ if(!galSel) return; const i=GAL.items.indexOf(galSel); await galDel(galSel.id); galSel=null;
   await showGallery(true);   // rebuilds the grid from the store
   if(GAL.items.length) openGalleryItem(GAL.items[Math.min(i,GAL.items.length-1)]); });   // stay in the expanded view, on the next picture
-$('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; $('#recipeTitle').textContent='How to: '+galSel.title; $('#recipeSteps').innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; showGallery(false); if(theatre) setTheatre(false); $('#recipe').hidden=false; });
+$('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; $('#recipeTitle').textContent='How to: '+galSel.title; $('#recipeSteps').innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; showGallery(false); if(theatre) setTheatre(false); if(phone()) setTray(false); recipeMini(); $('#recipe').hidden=false; });
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
 $('#help').addEventListener('click',()=>showHelp(true)); $('#helpClose').addEventListener('click',()=>showHelp(false));
 $('#helpWrap').addEventListener('click',e=>{ if(e.target.id==='helpWrap') showHelp(false); });
@@ -1581,7 +1601,7 @@ function placeTray(){
 function setTray(show){ tray.classList.toggle('hidden',!show); tab.textContent=show?'Hide':'Controls'; $('#qMore').classList.toggle('on',show); $('#qMore').textContent=show?'Close':'More'; if(show) requestAnimationFrame(placeTray); }
 tab.addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
 $('#qMore').addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
-$('#qCatch').addEventListener('click',catchCan); $('#qUndo').addEventListener('click',undoLast); $('#qSave').addEventListener('click',save);
+$('#qClear').addEventListener('click',clearBoard); $('#qUndo').addEventListener('click',undoLast); $('#qSave').addEventListener('click',save);
 if(Math.min(innerWidth,innerHeight)<560||phone()) setTray(false);
 addEventListener('keydown',e=>{
   lastActivity=performance.now();
@@ -1606,6 +1626,14 @@ addEventListener('keydown',e=>{
 });
 view.addEventListener('dblclick',fullscreen);
 
+/* a board that has been panned, moved or turned right off the screen: offer the way back (pan and turn reset,
+   then Fit board if it is still out of sight) */
+function boardOnScreen(){ boardPx(); const [cx,cy]=bc(), c=Math.cos(bd.ang), s=Math.sin(bd.ang), ox=pan.x+W/2+(bd.p[0]+cx)*ppm, oy=pan.y+H/2+(bd.p[1]+cy)*ppm;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const [px,py] of [[B.x,B.y],[B.x+B.w,B.y],[B.x,B.y+B.h],[B.x+B.w,B.y+B.h]]){ const dx=px-W/2-cx*ppm, dy=py-H/2-cy*ppm, x=ox+dx*c-dy*s, y=oy+dx*s+dy*c; x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y); }
+  const m=40; return x1>m&&x0<W-m&&y1>m&&y0<H-m; }
+function lostCheck(){ const lost=!theatre&&!viewing&&!panning&&!resizing&&!pivotDrag&&!boardOnScreen(); $('#lost').hidden=!lost; }
+$('#lost').addEventListener('click',()=>{ pan={x:0,y:0}; savePan(); bd.ang=0; if(P.rpm) setSlider('rpm',0); if(!boardOnScreen()){ Bm=null; saveBoard(); resize(); } $('#lost').hidden=true; toast('Board back in view'); });
 /* loop */
 let last=performance.now(),acc=0,uiT=0;
 function frame(now){
@@ -1614,7 +1642,7 @@ function frame(now){
   let n=0; if(paused) acc=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
   render();
-  uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
+  uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick(); lostCheck();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
   requestAnimationFrame(frame);
 }
 addEventListener('resize',resize); resize(); requestAnimationFrame(frame);

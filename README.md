@@ -44,7 +44,7 @@ A first visit opens in the theatre with the bar held on screen; after that the a
 
 The control tray drags by its grip; drop it near a side to dock it as a column, near the top or bottom to lie flat. Double-click the grip to reset.
 
-On a phone a slim bar at the bottom carries Catch, Undo, Clear, Save and More; the full tray opens as a half-height sheet and closes as soon as you touch the board.
+On a phone a slim bar at the bottom carries Clear, Undo, Surprise, Save, Theatre and More (tap the board to catch the can); the full tray opens as a half-height sheet and closes as soon as you touch the board. Leaving the Theatre always lands on a square, centred board, and if the board is ever pushed right off the screen a button appears to bring it back.
 
 **Movie mode** (on by default) fades the controls and rig away five seconds after a pattern starts if nothing is touched; move the mouse, touch the screen or press a key and they return. **View** (or `v`, or View on the phone bar) does the same on demand: rig, tray and readouts all go, and a tap or any key brings them back. **Hide rig** (`r`) hides just the can, string and handles. Press `?` for the full list of controls.
 
