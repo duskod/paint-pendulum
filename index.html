@@ -157,13 +157,14 @@
   body.galFull.galStill #galleryView .row,body.galFull.galStill .galArrow{opacity:0;pointer-events:none}
   body.galFull.galStill #galleryStage{cursor:none}
   #helpWrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:5;padding:14px}
-  #helpBox{background:rgba(24,20,16,.97);border:1px solid var(--tray-edge);border-radius:14px;padding:16px 20px 18px;max-width:760px;width:100%;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  #helpBox{background:rgba(24,20,16,.97);border:1px solid var(--tray-edge);border-radius:14px;padding:16px 20px 18px;max-width:min(1100px,94vw);width:100%;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
   #helpBox header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
   #helpBox h2{margin:0;font:800 14px var(--display);letter-spacing:.14em;text-transform:uppercase}
   #helpBox h3{margin:8px 0 6px;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   #helpBox .cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 28px}
   #helpBox dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font:400 13px/1.35 var(--body)}
-  #helpBox dt{font-weight:600;color:var(--ink);white-space:nowrap}
+  #helpBox dt{font-weight:600;color:var(--ink)}
+  #helpBox dl.keys dt{white-space:nowrap}
   #helpBox dd{margin:0;color:var(--muted)}
   #helpBox p.about{margin:10px 0 0;font:400 13px/1.45 var(--body);color:var(--muted);max-width:66ch}
   #helpBox p.about b{color:var(--ink);font-weight:600}
@@ -247,13 +248,13 @@
     <label class="sl" title="Paint flung off the stream: droplets around the line, blobs where it slows">Splat <input type="range" id="splat" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="A thick stream falling on the board buckles and coils, like a rope of syrup poured on a plate: loops where the can dawdles, pulling straight where it races">Coil <input type="range" id="coil" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <div class="btns">
-      <button class="b" id="catch">Catch</button>
+      <button class="b" id="catch" title="Put the cap back on and stop the swing (space)">Catch</button>
       <button class="b" id="undo" disabled title="Undo the last launch, removal or clear">Undo</button>
-      <button class="b" id="clear">Clear</button>
+      <button class="b" id="clear" title="Take everything off the board and start again (c). Undo brings it back">Clear</button>
       <button class="b" id="fit" title="Board back to full table, view recentred">Fit board</button>
-      <button class="b" id="save">Save</button>
-      <button class="b" id="full">Full</button>
-      <button class="b primary" id="viewBtn" title="See the picture alone: no rig, no controls (v). Tap or any key to come back">View</button>
+      <button class="b" id="save" title="Save the picture as a PNG (s)">Save</button>
+      <button class="b" id="full" title="Fill the screen (f)">Full</button>
+      <button class="b" id="viewBtn" title="See the picture alone: no rig, no controls (v). Tap or any key to come back">View</button>
       <button class="b" id="rig" title="Show or hide the can, string and handle (r)">Hide rig</button>
       <button class="b" id="gallery" title="Patterns kept from the theatre (g)">Gallery</button>
       <button class="b" id="saverBtn" hidden title="Open Android's screen saver settings and pick Paint Pendulum">Set as screen saver</button>
@@ -409,13 +410,23 @@ function turnCan(dt){ if(grabbed) return; twA+=(running?P.twist:Math.max(P.twist
 
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
+/* the tray sits over the foot of the window, so a board fitted to the whole window paints its downswing behind it */
+/* the tray is still growing when the first layout runs (chips, fonts), so a board fitted to it then still ends up
+   behind it. An untouched board refits itself once the tray has settled; one the painter has moved is left alone. */
+let autoBoard=false;
+function refitBoard(){ if(!autoBoard||swings.length) return; const b=Bm; Bm=null; resize();
+  if(b&&Math.abs(b.h-Bm.h)<1&&Math.abs(b.y-Bm.y)<1) return; }
+function bottomRoom(m){ if(phone()) return Math.max(m,60);
+  try{ if(trayPos&&trayPos.dock==='bottom'&&tray&&!tray.classList.contains('hidden'))
+    return Math.max(m,tray.offsetHeight+24,H*0.30); }catch(e){}   // the tray grows as rows appear: keep room for a taller one
+  return m; }
 function resize(){
   const oW=W,oH=H,oppm=ppm;
   W=innerWidth; H=innerHeight; dpr=Math.min(devicePixelRatio||1,2);
   view.width=Math.round(W*dpr); view.height=Math.round(H*dpr);
   const m=Math.max(12,Math.min(W,H)*0.04);
   ppm=Math.min(W-2*m,H-2*m)/1.15;
-  if(!Bm||!(Bm.w>0)){ const top=phone()?Math.max(m,40):m, bot=phone()?Math.max(m,60):m;
+  if(!Bm||!(Bm.w>0)){ autoBoard=true; const top=phone()?Math.max(m,40):m, bot=bottomRoom(m);
     Bm={x:-(W-2*m)/ppm/2,y:(top-H/2)/ppm,w:(W-2*m)/ppm,h:(H-top-bot)/ppm}; }
   boardPx(); drawTable(); rebuild();
   sprev=[];
@@ -838,11 +849,11 @@ function cancelGrab(){ if(bgrab){ bgrab=null; view.classList.remove('grabbing');
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing'); can.p=[0,0,P.L]; can.v=[0,0,0]; hist=[]; }
 function release(e){
   if(e&&e.pointerType==='touch') touches.delete(e.pointerId);
-  if(pivotDrag&&(!e||pivotDrag.id===e.pointerId)){ shiftPaint(Bm.x-pivotDrag.bx,Bm.y-pivotDrag.by); pivotDrag=null; view.style.cursor=''; saveBoard(); savePan(); return; }
+  if(pivotDrag&&(!e||pivotDrag.id===e.pointerId)){ shiftPaint(Bm.x-pivotDrag.bx,Bm.y-pivotDrag.by); pivotDrag=null; hover=null; autoBoard=false; view.style.cursor=''; saveBoard(); savePan(); return; }
   if(bgrab&&(!e||bgrab.id===e.pointerId)){ releaseBoard(); return; }
   if(resizing){
     if(resizing==='move'&&moveFrom) shiftPaint(Bm.x-moveFrom.bx,Bm.y-moveFrom.by); else rebuild();
-    resizing=null; moveFrom=null; view.style.cursor=''; saveBoard(); return; }
+    resizing=null; moveFrom=null; autoBoard=false; view.style.cursor=''; saveBoard(); return; }
   if(panning&&panning.id===e.pointerId){ panning=null; savePan(); return; }
   if(!grabbed) return; grabbed=false; view.classList.remove('grabbing');
   const t=performance.now();
@@ -1094,6 +1105,7 @@ const MOVERS=['turntable','triptych'];
 let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null;
 function freshBoard(){ if(!swings.length) return; remember_state(); swings=[]; cur=null; rebuild(); listSwings(); }
 function surprise(force){
+  if(typeof force!=='string') force=null;   // never let an event object through as a family name
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
   if(!theatre&&!autoplay) freshBoard();   // pressed by hand: a clean board, the old picture one Undo away (twice)
   resetCoverage(); genPattern=true; showT=0;
@@ -1291,7 +1303,7 @@ function autoTick(){
     autoT=setTimeout(()=>{ if(!autoplay) return; autoplay=true; if(theatre||Math.random()<0.65||swings.length>=3){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); } surprise(); },hold); autoplay='waiting'; }
 }
 function setAutoplay(on){ if(!on) clearTimeout(autoT); autoplay=on; $('#autoplay').checked=!!on; $('#qPlay').classList.toggle('on',!!on); clearTimeout(autoT); if(on&&!running) surprise(); }
-$('#surprise').addEventListener('click',surprise);
+$('#surprise').addEventListener('click',()=>surprise());
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
@@ -1299,7 +1311,7 @@ $('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
-function clearBoard(){ if(swings.length){ remember_state(); swings=[]; cur=null; rebuild(); listSwings(); } stopCan(); angAcc=0; T=0; if(P.rpm) setSlider('rpm',0); bd.ang=0; }
+function clearBoard(){ if(swings.length){ remember_state(); swings=[]; cur=null; rebuild(); listSwings(); } stopCan(); level=1; angAcc=0; T=0; if(P.rpm) setSlider('rpm',0); bd.ang=0; }
 /* history: the list of swings before each launch, removal or clear (swings themselves are never edited once done) */
 const history=[];
 function remember_state(){ history.push(swings.slice()); if(history.length>30) history.shift(); $('#undo').disabled=$('#qUndo').disabled=false; }
@@ -1483,10 +1495,12 @@ function setTheatre(on,opts={}){
     if(!opts.silent&&document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
     if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
+    if(!opts.silent) holdBar=performance.now()+8000;   // the bar, with Studio on it, stays up long enough to be seen
     holdAwake(true); wake(); track('theatre'); }
   else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false);
+    stopCan(); demo=null; after=null; genPattern=false;   /* the theatre's swing stays in the theatre */
     if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   /* a turntable pattern moved the board off the pivot: put it back */
-    bd.ang=0; if(P.rpm) setSlider('rpm',0); pan={x:0,y:0}; savePan();   /* the studio opens on a square, centred board, the turntable off */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
+    bd.ang=0; straighten=false; if(P.rpm) setSlider('rpm',0); pan={x:0,y:0}; savePan();   /* the studio opens on a square, centred board, the turntable off */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
 function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); if(performance.now()<holdBar) return; stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
@@ -1501,6 +1515,7 @@ let movie=true; try{ if(localStorage.getItem('pp-movie')==='0') movie=false; }ca
 $('#sign').checked=signed; $('#sign').addEventListener('change',e=>{ signed=e.target.checked; try{localStorage.setItem('pp-sign',signed?'1':'0')}catch(x){} });
 $('#movie').checked=movie; $('#movie').addEventListener('change',e=>{ movie=e.target.checked; try{localStorage.setItem('pp-movie',movie?'1':'0')}catch(x){} if(!movie&&viewAuto) setViewing(false); });
 let lastActivity=performance.now(), lastPX=0, lastPY=0, overTray=false;
+let movieTold=false; try{ movieTold=localStorage.getItem('pp-movie-told')==='1'; }catch(e){}
 function activity(){ lastActivity=performance.now(); if(viewing&&viewAuto) setViewing(false); }
 addEventListener('pointermove',e=>{ if(Math.hypot(e.clientX-lastPX,e.clientY-lastPY)>6){ lastPX=e.clientX; lastPY=e.clientY; activity(); } },{passive:true});
 addEventListener('pointerdown',()=>{ lastActivity=performance.now(); },{passive:true,capture:true});
@@ -1513,7 +1528,8 @@ $('#tray').addEventListener('pointerenter',()=>overTray=true); $('#tray').addEve
 function movieTick(){
   if(theatre) return;
   if(!movie||viewing||!running||demo||grabbed||bgrab||resizing||panning||armed>=0||overTray||!$('#helpWrap').hidden) return;
-  if(performance.now()-lastActivity>5000) setViewing(true,true);
+  if(performance.now()-lastActivity>5000){ setViewing(true,true);
+    if(!movieTold){ movieTold=true; try{localStorage.setItem('pp-movie-told','1')}catch(e){} toast('The picture alone \u00b7 move the mouse or touch the screen for the controls',4000); } }
 }
 $('#viewBtn').addEventListener('click',()=>setViewing(true));
 let galSel=null, galUrls=[];
@@ -1600,8 +1616,9 @@ function placeTray(){
   grip.addEventListener('pointerup',drop); grip.addEventListener('pointercancel',drop);
   grip.addEventListener('dblclick',()=>{ trayPos={dock:'bottom',x:0,y:0}; placeTray(); try{localStorage.setItem('pp-tray',JSON.stringify(trayPos))}catch(err){} });
   addEventListener('resize',placeTray);
-  placeTray(); requestAnimationFrame(placeTray);
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(placeTray);
+  placeTray(); requestAnimationFrame(()=>{placeTray(); refitBoard();});
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{placeTray(); refitBoard();});
+  setTimeout(()=>{placeTray(); refitBoard();},400);
 })();
 function setTray(show){ tray.classList.toggle('hidden',!show); tab.textContent=show?'Hide':'Controls'; $('#qMore').classList.toggle('on',show); $('#qMore').textContent=show?'Close':'More'; if(show) requestAnimationFrame(placeTray); }
 tab.addEventListener('click',()=>setTray(tray.classList.contains('hidden')));
@@ -1674,7 +1691,6 @@ addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
   if(!seen){ try{localStorage.setItem('pp-seen','1')}catch(e){}
     holdBar=performance.now()+20000;   // keep the bar in view through the first pattern, so the Studio is discoverable
     setTheatre(true,{silent:true}); wake();
-    toast('Sit back and watch. Press Studio to swing the can yourself, Full screen for the full effect.',12000);
   } else if(room==='theatre'){ setTheatre(true,{silent:true}); }
 })();
 
