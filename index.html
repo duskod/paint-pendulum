@@ -228,7 +228,7 @@
     <label class="tog" title="Keep serving new patterns, one after another (a)"><input type="checkbox" id="autoplay"> Auto-play</label>
     <label class="tog" title="A few seconds after a pattern starts, the controls and rig fade away. Move the mouse, touch the screen or press a key to bring them back"><input type="checkbox" id="movie" checked> Movie mode</label>
     <label class="sl" title="Watch a pull demonstrated, then the pattern being made">Example <select id="preset"><option value="">Show me&hellip;</option><option value="harmonograph">Harmonograph (two lobes)</option><option value="rosette">Rosette (precessing ellipse)</option><option value="spiral">Spiral (rings like a record)</option><option value="turntable">Turntable (loops round a hole)</option><option value="coil">Coil (a broad band on a turning board)</option><option value="lissajous">Lissajous 2:3</option><option value="rake">Rake (braided trails)</option><option value="panels">Panels (a row of three)</option><option value="poured">Poured (a coiling stream)</option><option value="splatter">Splatter can</option></select></label>
-    <label class="tog"><input type="checkbox" id="auto" checked> Cap when still</label>
+    <label class="tog" title="Put the cap back on by itself once the swing has died away, so a finished picture stops rather than pooling paint in the middle"><input type="checkbox" id="auto" checked> Cap when still</label>
     <label class="tog" title="A small signature in the corner of the board and on every saved picture, the way a painting is signed. Untick to leave the board blank"><input type="checkbox" id="sign" checked> Signed</label>
   </div>
   <div class="row" id="swingRow" hidden><span class="lbl">Swings</span><div class="chips" id="swingChips"></div><span class="lbl" id="swingHint" style="letter-spacing:.04em;text-transform:none">hover to see one, click to recolour or remove it</span>
@@ -236,14 +236,14 @@
       <span id="swingActs"><button class="b sm danger" id="swingRemove">Remove</button><button class="b sm" id="swingDone">Done</button></span>
       <span id="confirm" hidden><span id="confirmText"></span><button class="b sm danger" id="confirmYes">Remove</button><button class="b sm" id="confirmNo">Keep</button></span></span></div>
   <div class="row">
-    <label class="sl">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
+    <label class="sl" title="How fast the paint pours: a heavy flow lays a wide line and pools where the can slows, a light one draws thin">Flow <input type="range" id="flow" min="0.8" max="8" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="The can's string: sets its period">String <input type="range" id="L" min="0.6" max="3" step="0.05" value="1.6"><output>1.60</output></label>
-    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Brd str <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
-    <label class="sl">Air <input type="range" id="damp" min="0.003" max="0.35" step="0.001" value="0.06"><output>0.06</output></label>
+    <label class="sl" title="The board's own string: the second pendulum's period. Pull the steel handle on the left edge to swing it.">Board string <input type="range" id="L2" min="0.3" max="3" step="0.01" value="1.05"><output>1.05</output></label>
+    <label class="sl" title="Air resistance: how quickly the swing dies away. Low values keep the loops the same size for a long time">Air <input type="range" id="damp" min="0.003" max="0.35" step="0.001" value="0.06"><output>0.06</output></label>
     <label class="sl" title="The board hangs on its own strings and sways too, like a harmonograph. Set how hard it is pushed when you let the can go.">Sway <input type="range" id="swing" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="Turntable: the board rotates under the can, in revolutions per minute">Turn <input type="range" id="rpm" min="0" max="3" step="0.1" value="0"><output>off</output><button class="b sm" id="rpmDir" title="Direction of turn">&#8635;</button></label>
-    <label class="sl">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
-    <label class="sl">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
+    <label class="sl" title="How fast the can turns as it swings, which rotates the ribbon split and the bar of nozzles">Twist <input type="range" id="twist" min="0" max="1" step="0.01" value="0.15"><output>0.15</output></label>
+    <label class="sl" title="The spacing between the holes when the can has a bar of several nozzles, in centimetres">Gap <input type="range" id="gap" min="0.8" max="5" step="0.1" value="2"><output>2.0</output></label>
     <label class="sl" title="Paint flung off the stream: droplets around the line, blobs where it slows">Splat <input type="range" id="splat" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <label class="sl" title="A thick stream falling on the board buckles and coils, like a rope of syrup poured on a plate: loops where the can dawdles, pulling straight where it races">Coil <input type="range" id="coil" min="0" max="1" step="0.05" value="0"><output>0</output></label>
     <div class="btns">
@@ -271,7 +271,7 @@
   <button class="q" id="qMore" aria-controls="tray">More</button>
 </nav>
 <div id="toast" role="status"></div>
-<button id="lost" hidden class="b primary" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:12px 18px;font-size:14px;box-shadow:0 12px 36px rgba(0,0,0,.5)">The board is off screen &middot; bring it back</button>
+<button id="lost" hidden class="b primary" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;padding:12px 18px;font-size:14px;box-shadow:0 12px 36px rgba(0,0,0,.5)">The board is out of reach &middot; bring it back</button>
 <aside id="recipe" hidden aria-label="How to reproduce this example">
   <header><b id="recipeTitle"></b><button class="b sm" id="recipeClose">Close</button></header>
   <ol id="recipeSteps"></ol>
@@ -878,7 +878,8 @@ function restCan(){ running=false; flowing=false; can.p=[0,0,P.L]; can.v=[0,0,0]
 /* a pattern has run its course in the studio: a spinning board would go on spinning with nothing on screen to stop
    it, so the turntable goes off and the board eases back to square (the theatre and auto-play manage their own) */
 let straighten=false;
-function settleBoard(){ if(theatre||autoplay) return; if(P.rpm) setSlider('rpm',0); if(Math.abs(bd.ang)>1e-3) straighten=true; }
+function settleBoard(){ if(theatre||autoplay||!genPattern) return;   // a Turn the painter set by hand is theirs to keep
+  if(P.rpm) setSlider('rpm',0); if(Math.abs(bd.ang)>1e-3) straighten=true; }
 function drive(cx,cy,cvx,cvy,bx,by,bvx,bvy){
   cancelGrab(); stopCan();
   const r0=Math.hypot(cx,cy), rmax0=0.86*P.L; if(r0>rmax0){cx*=rmax0/r0;cy*=rmax0/r0}
@@ -1504,6 +1505,10 @@ function activity(){ lastActivity=performance.now(); if(viewing&&viewAuto) setVi
 addEventListener('pointermove',e=>{ if(Math.hypot(e.clientX-lastPX,e.clientY-lastPY)>6){ lastPX=e.clientX; lastPY=e.clientY; activity(); } },{passive:true});
 addEventListener('pointerdown',()=>{ lastActivity=performance.now(); },{passive:true,capture:true});
 addEventListener('wheel',activity,{passive:true});
+/* a phone can never hover, so a tap on a control's name says what it does */
+$('#tray').addEventListener('click',e=>{ if(!phone()) return;
+  const t=e.target; if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='BUTTON') return;
+  const lab=t.closest('.sl,.tog'); if(lab&&lab.title) toast(lab.title,5000); });
 $('#tray').addEventListener('pointerenter',()=>overTray=true); $('#tray').addEventListener('pointerleave',()=>overTray=false);
 function movieTick(){
   if(theatre) return;
@@ -1628,12 +1633,27 @@ view.addEventListener('dblclick',fullscreen);
 
 /* a board that has been panned, moved or turned right off the screen: offer the way back (pan and turn reset,
    then Fit board if it is still out of sight) */
-function boardOnScreen(){ boardPx(); const [cx,cy]=bc(), c=Math.cos(bd.ang), s=Math.sin(bd.ang), ox=pan.x+W/2+(bd.p[0]+cx)*ppm, oy=pan.y+H/2+(bd.p[1]+cy)*ppm;
+/* Can the painter still get hold of the board? Not the same question as "is any of it visible": a board can be shoved
+   until only a corner shows and its brass carrying handle has left the screen, and then there is no way to drag it
+   back. So the test is the board's centre and its handle, both in the turned frame, not merely the rectangle. */
+function boardPts(){ boardPx(); const [cx,cy]=bc(), c=Math.cos(bd.ang), s=Math.sin(bd.ang),
+    ox=pan.x+W/2+(bd.p[0]+cx)*ppm, oy=pan.y+H/2+(bd.p[1]+cy)*ppm;
+  const map=(px,py)=>{ const dx=px-W/2-cx*ppm, dy=py-H/2-cy*ppm; return [ox+dx*c-dy*s, oy+dx*s+dy*c]; };
+  const hr=handleRect();
+  return { corners:[[B.x,B.y],[B.x+B.w,B.y],[B.x,B.y+B.h],[B.x+B.w,B.y+B.h]].map(q=>map(q[0],q[1])),
+           centre:map(B.x+B.w/2,B.y+B.h/2), handle:map(hr.x+hr.w/2,hr.y+hr.h/2) }; }
+function boardReachable(){
+  const p=boardPts(), bot=phone()?70:10;                       // the phone bar sits over the foot of the screen
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-  for(const [px,py] of [[B.x,B.y],[B.x+B.w,B.y],[B.x,B.y+B.h],[B.x+B.w,B.y+B.h]]){ const dx=px-W/2-cx*ppm, dy=py-H/2-cy*ppm, x=ox+dx*c-dy*s, y=oy+dx*s+dy*c; x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y); }
-  const m=40; return x1>m&&x0<W-m&&y1>m&&y0<H-m; }
-function lostCheck(){ const lost=!theatre&&!viewing&&!panning&&!resizing&&!pivotDrag&&!boardOnScreen(); $('#lost').hidden=!lost; }
-$('#lost').addEventListener('click',()=>{ pan={x:0,y:0}; savePan(); bd.ang=0; if(P.rpm) setSlider('rpm',0); if(!boardOnScreen()){ Bm=null; saveBoard(); resize(); } $('#lost').hidden=true; toast('Board back in view'); });
+  for(const [x,y] of p.corners){ x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y); }
+  if(!(x1>40&&x0<W-40&&y1>40&&y0<H-40)) return false;           // barely any of it on screen
+  if(!(p.centre[0]>0&&p.centre[0]<W&&p.centre[1]>0&&p.centre[1]<H)) return false;   // its middle has left
+  if(showRig&&!(p.handle[0]>10&&p.handle[0]<W-10&&p.handle[1]>10&&p.handle[1]<H-bot)) return false;   // no handle to grab
+  return true; }
+function lostCheck(){ const lost=!theatre&&!viewing&&!panning&&!resizing&&!pivotDrag&&!grabbed&&!bgrab&&!boardReachable(); $('#lost').hidden=!lost; }
+$('#lost').addEventListener('click',()=>{ pan={x:0,y:0}; savePan(); bd.ang=0; straighten=false; if(P.rpm) setSlider('rpm',0);
+  if(!boardReachable()){ Bm=null; saveBoard(); resize(); }     // still out of reach: back to a full, centred board
+  $('#lost').hidden=true; toast('Board back in reach'); });
 /* loop */
 let last=performance.now(),acc=0,uiT=0;
 function frame(now){
