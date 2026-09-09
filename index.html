@@ -139,6 +139,9 @@
   #galleryGrid img{display:block;width:100%;aspect-ratio:2/1;object-fit:contain;background:#000}
   #galleryGrid figcaption{font:500 11px var(--mono);color:var(--muted);padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
   #galleryStage{position:relative;touch-action:pan-y;user-select:none}
+  #galleryHow{margin:10px auto 0;padding-left:20px;max-width:70ch;font:400 13px/1.45 var(--body);color:var(--muted);display:grid;gap:4px}
+  #galleryHow .k{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:0 5px;color:var(--ink);white-space:nowrap}
+  body.galFull #galleryHow{display:none}
   #galleryImg{display:block;max-width:100%;max-height:calc(100vh - 160px);margin:0 auto;border:1px solid var(--tray-edge);border-radius:6px}
   .galArrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:1px solid var(--tray-edge);border-radius:10px;background:rgba(24,20,16,.75);color:var(--ink);font:700 22px var(--display);cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(4px)}
   .galArrow:hover{background:rgba(24,20,16,.95);border-color:var(--accent)}
@@ -208,21 +211,24 @@
   <h1>Paint Pendulum<small>by Dusko Delic</small></h1>
   <div class="readout"><b id="loops">0</b> loops &nbsp;&middot;&nbsp; <b id="clock">0.0</b> s &nbsp;&middot;&nbsp; can <b id="level">100</b>%</div>
 </header>
-<div id="hint">Pull the can, let go<small>Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
+<div id="hint">Pull the can, let go<small id="hintSmall">Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view</small></div>
 
 <aside id="tray" aria-label="Controls">
   <div id="grip" title="Drag to move the tray; drop it near an edge to dock there" aria-hidden="true"></div>
+  <div class="row" id="customRow" hidden>
+    <div class="group" id="customPaintG" hidden><span class="lbl">Your paints</span>
+      <span class="custom" id="custom" hidden><span id="customInputs" style="display:contents"></span><button class="b sm" id="roll" title="Roll a fresh set of six">Roll</button></span></div>
+    <div class="group" id="customBoardG" hidden><span class="lbl">Your board</span>
+      <span class="custom" id="customBoard" hidden><input type="color" id="boardPick" aria-label="Board colour"></span></div>
+    <div class="group" id="customTableG" hidden><span class="lbl">Your desk</span>
+      <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span></div>
+  </div>
   <div class="row">
     <div class="group"><span class="lbl">Paint</span><div class="chips" id="pairs"></div>
       <span class="custom" id="penColour" hidden title="Pen colour"><input type="color" id="penPick" aria-label="Pen colour"></span>
-      <span class="custom" id="custom" hidden><span id="customInputs" style="display:contents"></span><button class="b sm" id="roll" title="Roll a fresh set of six">Roll</button></span>
     </div>
-    <div class="group"><span class="lbl">Board</span><div class="chips" id="boards"></div>
-      <span class="custom" id="customBoard" hidden><input type="color" id="boardPick" aria-label="Board colour"></span>
-    </div>
-    <div class="group"><span class="lbl">Desk</span><div class="chips" id="tables"></div>
-      <span class="custom" id="customTable" hidden><input type="color" id="tablePick" aria-label="Desk colour"></span>
-    </div>
+    <div class="group"><span class="lbl">Board</span><div class="chips" id="boards"></div></div>
+    <div class="group"><span class="lbl">Desk</span><div class="chips" id="tables"></div></div>
     <label class="sl">Nozzle <select id="mode"><option value="ribbon">Two-tone ribbon</option><option value="solid">Single</option><option value="3">3 in line</option><option value="4">4 in line</option><option value="5">5 in line</option><option value="6">6 in line</option><option value="pen">Pen (thin line)</option><option value="marbled">Marbled stream</option></select></label>
     <button class="b primary" id="theatreBtn" title="Sit back: patterns compose themselves on a still board, full screen, nothing else on show (t)">Theatre</button>
     <button class="b" id="surprise" title="A fresh pattern composed for you: random family, colours, periods and release moment (p)">Surprise me</button>
@@ -297,6 +303,7 @@
     <div id="galleryView" hidden>
       <div id="galleryStage">
         <img id="galleryImg" alt="">
+        <ol id="galleryHow" hidden></ol>
         <button class="galArrow" id="galPrev" title="Previous (←, or swipe)" aria-label="Previous picture">&#8249;</button>
         <button class="galArrow" id="galNext" title="Next (→, or swipe)" aria-label="Next picture">&#8250;</button>
       </div>
@@ -317,7 +324,7 @@
           <dt>Pull the can, let go</dt><dd>launch; the speed and direction you release with set the swing</dd>
           <dt>Tap the board</dt><dd>catch the can</dd>
           <dt>Esc while pulling</dt><dd>cancel the pull</dd>
-          <dt>Drag an edge or corner</dt><dd>resize the board</dd>
+          <dt>Drag an edge or corner</dt><dd>resize the board. On a touch screen the corners are drawn as small brass grips, and the whole edge is a wide target</dd>
           <dt>Drag the brass handle (top edge)</dt><dd>move the board under the pendulum, paint and all (Shift-drag on the board does the same)</dd>
           <dt>Drag the dashed ring round the can at rest</dt><dd>move the pivot over the board; the board and its paint stay put</dd>
           <dt>Turn with the pivot off the board's centre</dt><dd>the board turns about its own centre, like a turntable on an axle, so the swing's loops walk round in a ring and leave a hole (the Turntable example)</dd>
@@ -334,6 +341,7 @@
           <dt>Surprise me</dt><dd>a pattern composed for you: random family, colours, periods and release moment. Auto-play keeps them coming; on the phone bar, double-tap Surprise for auto-play and tap again to stop</dd>
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
+          <dt>Gallery: How to</dt><dd>shows the recipe under the picture without leaving the gallery; press it again to hide it</dd>
           <dt>Coil (slider)</dt><dd>how thickly the paint is poured. Turned up, the falling stream buckles and coils like a rope of syrup on a plate: tight loops where the swing dawdles at its ends, pulled straight through the fast middle. A pen never coils</dd>
           <dt>Signed</dt><dd>a small signature sits in the board's corner and on every saved picture, as a painting is signed; untick it in the tray for a blank board</dd>
         </dl>
@@ -416,7 +424,8 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 let autoBoard=false;
 function refitBoard(){ if(!autoBoard||swings.length) return; const b=Bm; Bm=null; resize();
   if(b&&Math.abs(b.h-Bm.h)<1&&Math.abs(b.y-Bm.y)<1) return; }
-function bottomRoom(m){ if(phone()) return Math.max(m,60);
+function bottomRoom(m){ if(phone()){ let q=52; try{ q=$('#quick').offsetHeight||52; }catch(e){}
+    return Math.max(m,q+28); }                       // clear of the phone bar, so the bottom edge can be grabbed
   try{ if(trayPos&&trayPos.dock==='bottom'&&tray&&!tray.classList.contains('hidden'))
     return Math.max(m,tray.offsetHeight+24,H*0.30); }catch(e){}   // the tray grows as rows appear: keep room for a taller one
   return m; }
@@ -683,10 +692,15 @@ function render(){
     const pr=pushRect(), lit2=hover==='push'||!!bgrab;
     ctx.fillStyle=lit2?'#dbe6f0':'#9fb3c8'; rr(ctx,pr.x,pr.y,pr.w,pr.h,10); ctx.fill();
     ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pr.x+pr.w/2,pr.y+pr.h/2,5,0,TAU); ctx.stroke(); }
-  // corner ticks so the edges read as handles
-  ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=2; const L=12;
-  if(!viewing&&!theatre) for(const [cx,cy,sx,sy] of [[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]]){
-    ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke();
+  // corner ticks so the edges read as handles; on a touch screen, where nothing changes under a cursor,
+  // they are drawn as small brass grips you can see and aim at
+  const corners=[[B.x,B.y,1,1],[B.x+B.w,B.y,-1,1],[B.x,B.y+B.h,1,-1],[B.x+B.w,B.y+B.h,-1,-1]];
+  if(!viewing&&!theatre){
+    ctx.strokeStyle='rgba(230,203,148,.8)'; ctx.lineWidth=coarse?3:2; const L=coarse?18:12;
+    for(const [cx,cy,sx,sy] of corners){ ctx.beginPath(); ctx.moveTo(cx+sx*L,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*L); ctx.stroke(); }
+    if(coarse&&showRig) for(const [cx,cy,sx,sy] of corners){
+      ctx.fillStyle='rgba(176,141,87,.9)'; rr(ctx,cx+(sx>0?2:-13),cy+(sy>0?2:-13),11,11,3); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=1; ctx.stroke(); }
   }
   if(resizing&&resizing!=='move'){ ctx.font='500 12px '+getComputedStyle(document.body).getPropertyValue('--mono'); ctx.fillStyle='#e6cb94'; ctx.textAlign='center';
     ctx.fillText(`${Bm.w.toFixed(2)} × ${Bm.h.toFixed(2)} m`,B.x+B.w/2,B.y-24>20?B.y-24:B.y+B.h+18); }
@@ -746,6 +760,7 @@ function render(){
   }
   ctx.restore();   // end view pan
 }
+let coarse=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(e){return false}})();
 const clampX=(x,half)=>Math.max(half,Math.min(W-half,x));   // keep a caption inside the screen
 function drawCan(x,y){
   const r=Math.min(W,H)<600?14:17, a=twA;
@@ -809,7 +824,7 @@ view.addEventListener('pointerdown',e=>{
   if(phone()&&!tray.classList.contains('hidden')) setTray(false);
   if(demo){ demo=null; stopCan(); bd.p=[0,0,P.L2]; bd.v=[0,0,0]; } after=null;
   view.setPointerCapture(e.pointerId);
-  const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?22:12);
+  const [sx,sy]=ptrPx(e); let h=edgeAt(sx,sy,e.pointerType==='touch'?26:12);
   if(!h&&e.shiftKey&&sx>B.x&&sx<B.x+B.w&&sy>B.y&&sy<B.y+B.h) h='move';
   if(h==='pivot'){ pivotDrag={id:e.pointerId,x:e.clientX,y:e.clientY,bx:Bm.x,by:Bm.y}; view.style.cursor='move'; $('#hint').classList.add('gone'); return; }
   if(h==='push'){ // pull the board pendulum: it follows the finger from wherever it is now, let go to swing
@@ -831,7 +846,7 @@ view.addEventListener('pointermove',e=>{
     const dx=e.clientX-pivotDrag.x, dy=e.clientY-pivotDrag.y; pivotDrag.x=e.clientX; pivotDrag.y=e.clientY;
     Bm.x-=dx/ppm; Bm.y-=dy/ppm; anchor={x:Bm.x,y:Bm.y}; pan.x+=dx; pan.y+=dy; return; }
   if(bgrab){ if(bgrab.id!==e.pointerId) return; placeBoard((e.clientX-bgrab.x0)/ppm,(e.clientY-bgrab.y0)/ppm); const t=performance.now(); bgrab.hist.push({x:bd.p[0],y:bd.p[1],t}); while(bgrab.hist.length>1&&t-bgrab.hist[0].t>140) bgrab.hist.shift(); return; }
-  if(!grabbed){ const [sx,sy]=ptrPx(e); hover=edgeAt(sx,sy,12); view.style.cursor=hover?CURS[hover]:''; return; }
+  if(!grabbed){ const [sx,sy]=ptrPx(e); hover=edgeAt(sx,sy,e.pointerType==='touch'?26:12); view.style.cursor=hover?CURS[hover]:''; return; }
   const q=ptr(e); placeCan(q); const t=performance.now(); hist.push({q,t}); while(hist.length>1&&t-hist[0].t>140) hist.shift();
 });
 let bgrab=null, pivotDrag=null;
@@ -932,7 +947,7 @@ $('#rpmDir').addEventListener('click',()=>setRpmDir(-rpmDir));
 function setSlider(id,v){ if(id==='rpm'){ setRpmDir(v<0?-1:1); v=Math.abs(v); } const el=$('#'+id); el.value=v; el.dispatchEvent(new Event('input')); }
 function setMode(m){ $('#mode').value=m; $('#mode').dispatchEvent(new Event('change')); }
 function pickPalette(i){ const b=$('#pairs').children[i]; if(b) b.click(); }
-function setBoardColour(hex){ boardSel=4; boardCol=BOARDS[4][1]=hex; $('#boardPick').value=hex; [...$('#boards').children].forEach((c,j)=>c.classList.toggle('on',j===4)); $('#customBoard').hidden=false; }
+function setBoardColour(hex){ boardSel=4; boardCol=BOARDS[4][1]=hex; $('#boardPick').value=hex; [...$('#boards').children].forEach((c,j)=>c.classList.toggle('on',j===4)); $('#customBoard').hidden=false; syncCustomRow(); }
 const K=t=>`<span class="k">${t}</span>`;
 const RECIPES={
   harmonograph:['Nozzle '+K('Pen (thin line)')+', Board '+K('Custom')+' blue, Paint '+K('Custom')+' white.',
@@ -1432,8 +1447,10 @@ function buildCustom(){
   for(let k=0;k<6;k++){ const i=document.createElement('input'); i.type='color'; i.value=CUSTOM[k+1]; i.setAttribute('aria-label','Colour '+(k+1));
     i.style.opacity=k<n?'1':'.4'; i.title=k<n?'Colour '+(k+1):'Colour '+(k+1)+' (used with more nozzles)';
     i.addEventListener('input',()=>{CUSTOM[k+1]=i.value;cols=CUSTOM.slice(1);remember('pp-custom',CUSTOM.slice(1))}); host.appendChild(i); }
-  $('#custom').hidden=!customOn(); requestAnimationFrame(placeTray);
+  $('#custom').hidden=!customOn(); syncCustomRow();
 }
+function syncCustomRow(){ for(const [g,c] of [['#customPaintG','#custom'],['#customBoardG','#customBoard'],['#customTableG','#customTable']]) $(g).hidden=$(c).hidden;
+  $('#customRow').hidden=$('#custom').hidden&&$('#customBoard').hidden&&$('#customTable').hidden; requestAnimationFrame(placeTray); }
 function buildPairs(){ chips($('#pairs'),PAIRS,()=>pairSel,(it,i)=>{pairSel=i;cols=it.slice(1);buildCustom();syncPen()},(b,it)=>{b.style.background=chipBg(it)}); syncPen(); }
 /* one-colour nozzles (pen, single): the chips show one colour each and a picker sets it directly */
 function syncPen(){ const one=colourCount(P.mode)===1; $('#penColour').hidden=!one||customOn(); if(one) $('#penPick').value=cols[0]; }
@@ -1445,9 +1462,9 @@ $('#roll').addEventListener('click',()=>{
   for(let i=0;i<6;i++) CUSTOM[i+1]=hsl(base+(i-2.5)*spread/5+(i===5?180:0),0.6+Math.random()*0.35,0.42+Math.random()*0.25);
   cols=CUSTOM.slice(1); remember('pp-custom',CUSTOM.slice(1)); buildCustom();
 });
-chips($('#boards'),BOARDS,()=>boardSel,(it,i)=>{boardSel=i;boardCol=it[1];$('#customBoard').hidden=it[0]!=='Custom'},(b,it)=>{b.style.background=it[1]});
-chips($('#tables'),TABLES,()=>tableSel,(it,i)=>{tableSel=i;$('#customTable').hidden=it[0]!=='Custom';drawTable();remember('pp-table',{i,c:TABLES[5][1]})},(b,it)=>{b.style.background=`linear-gradient(${it[1]},${it[2]})`});
-$('#customTable').hidden=TABLES[tableSel][0]!=='Custom';
+chips($('#boards'),BOARDS,()=>boardSel,(it,i)=>{boardSel=i;boardCol=it[1];$('#customBoard').hidden=it[0]!=='Custom';syncCustomRow()},(b,it)=>{b.style.background=it[1]});
+chips($('#tables'),TABLES,()=>tableSel,(it,i)=>{tableSel=i;$('#customTable').hidden=it[0]!=='Custom';syncCustomRow();drawTable();remember('pp-table',{i,c:TABLES[5][1]})},(b,it)=>{b.style.background=`linear-gradient(${it[1]},${it[2]})`});
+$('#customTable').hidden=TABLES[tableSel][0]!=='Custom'; syncCustomRow();
 $('#tablePick').value=TABLES[5][1];
 $('#tablePick').addEventListener('input',e=>{TABLES[5][1]=TABLES[5][2]=e.target.value;drawTable();remember('pp-table',{i:tableSel,c:e.target.value})});
 $('#boardPick').value=BOARDS[4][1];
@@ -1545,7 +1562,7 @@ async function showGallery(on){
     const c=document.createElement('figcaption'); c.innerHTML=`<span>${it.title}</span><span>${new Date(it.id).toLocaleDateString()}</span>`; f.append(im,c);
     f.addEventListener('click',()=>openGalleryItem(it)); grid.appendChild(f); }
 }
-function openGalleryItem(it){ galSel=it; const u=URL.createObjectURL(it.full); galUrls.push(u); $('#galleryImg').src=u;
+function openGalleryItem(it){ galSel=it; $('#galleryHow').hidden=true; $('#galleryRecipe').textContent='How to'; const u=URL.createObjectURL(it.full); galUrls.push(u); $('#galleryImg').src=u;
   const i=GAL.items.indexOf(it), n=GAL.items.length;
   $('#galleryMeta').textContent=it.title+'  \u00b7  '+new Date(it.id).toLocaleString()+(n>1?'  \u00b7  '+(i+1)+' / '+n:'');
   $('#galPrev').disabled=$('#galNext').disabled=n<2; $('#galleryGrid').hidden=true; $('#galleryView').hidden=false; }
@@ -1582,7 +1599,10 @@ $('#gallerySave').addEventListener('click',()=>{ if(galSel) track('gallery-save'
 $('#galleryDelete').addEventListener('click',async()=>{ if(!galSel) return; const i=GAL.items.indexOf(galSel); await galDel(galSel.id); galSel=null;
   await showGallery(true);   // rebuilds the grid from the store
   if(GAL.items.length) openGalleryItem(GAL.items[Math.min(i,GAL.items.length-1)]); });   // stay in the expanded view, on the next picture
-$('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; $('#recipeTitle').textContent='How to: '+galSel.title; $('#recipeSteps').innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; showGallery(false); if(theatre) setTheatre(false); if(phone()) setTray(false); recipeMini(); $('#recipe').hidden=false; });
+/* the recipe belongs beside the picture: showing it used to close the gallery and drop you in the studio */
+$('#galleryRecipe').addEventListener('click',()=>{ if(!galSel) return; const how=$('#galleryHow'), on=how.hidden;
+  how.innerHTML=galSel.steps||'<li>No recipe was recorded for this one.</li>'; how.hidden=!on;
+  $('#galleryRecipe').textContent=on?'Hide how':'How to'; });
 function showHelp(on){ $('#helpWrap').hidden=!on; if(on) $('#helpClose').focus(); }
 $('#help').addEventListener('click',()=>showHelp(true)); $('#helpClose').addEventListener('click',()=>showHelp(false));
 $('#helpWrap').addEventListener('click',e=>{ if(e.target.id==='helpWrap') showHelp(false); });
@@ -1682,6 +1702,10 @@ function frame(now){
   uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick(); lostCheck();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
   requestAnimationFrame(frame);
 }
+function syncHint(){ $('#hintSmall').textContent = phone()
+  ? 'Or tap Surprise and just watch. Tap the board to catch the can. Drag a corner to resize the board, the handle on its top edge to move it, two fingers to pan. Tap More, then ?, for everything else.'
+  : 'Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view'; }
+syncHint(); addEventListener('resize',syncHint);
 addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
 (function(){
   let seen=null,room=null; try{seen=localStorage.getItem('pp-seen'); room=localStorage.getItem('pp-room')}catch(e){}
