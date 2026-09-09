@@ -1081,6 +1081,9 @@ const THEATRE_MIX=['harmonograph','harmonograph','lissajous','lissajous','twin',
   'spiral','spiral','star','star','turntable','turntable','triptych','rosette','spiro','overlay'];
 const STUDIO_MIX=['harmonograph','lissajous','twin','lattice','rosette','spiro','spiral','star','turntable','triptych','overlay'];
 const MOVERS=['turntable','triptych'];
+/* Panels measures the board itself and lays its row along the longer side, so the round-figure fit below, which
+   works to the nearest edge, would either squash the row or fling it off the ends. Leave it to size itself. */
+const SELF_FIT=['triptych'];
 let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null;
 function freshBoard(){ if(!swings.length) return; remember_state(); swings=[]; cur=null; rebuild(); listSwings(); }
 function surprise(force){
@@ -1088,7 +1091,8 @@ function surprise(force){
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
   if(!theatre&&!autoplay) freshBoard();   // pressed by hand: a clean board, the old picture one Undo away (twice)
   resetCoverage(); genPattern=true; showT=0;
-  const mix=theatre?THEATRE_MIX:STUDIO_MIX;
+  const mix=(Bm&&Bm.w>Bm.h*1.5)?(theatre?THEATRE_MIX:STUDIO_MIX).concat(['triptych','triptych'])
+                               :(theatre?THEATRE_MIX:STUDIO_MIX);   // a wide board wants figures that use the width
   let fam=force||pick(mix);
   if(!force&&fam===lastFam) fam=pick(mix);   // one re-roll: never the same figure twice running
   lastFam=fam;
@@ -1099,7 +1103,7 @@ function surprise(force){
         lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
   const dark=fam==='turntable'||Math.random()<0.58; const board=pick(dark?darkBoards:lightBoards); setBoardColour(board);
   const med=pick(MEDIA[fam]);
-  const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); setSlider('splat',0); setSlider('twist',0); setSlider('flow',2); setSlider('gap',2); setSlider('coil',0);
+  const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); bd.ang=0; straighten=false; setSlider('splat',0); setSlider('twist',0); setSlider('flow',2); setSlider('gap',2); setSlider('coil',0);
   const medLine=useMedium(med,P0,board);
   const steps=[]; let bx=0,by=0,bvx=0,bvy=0, cx=0,cy=0,cvx=0,cvy=0, why='', chain=[], title='';
   // a thick medium buries a long run, so it gets a shorter one: more air drag, fewer loops
@@ -1153,13 +1157,16 @@ function surprise(force){
     const n=pick([2,3,3,3,4]);
     // lay the row along whichever way the board is longer: across a desktop screen, down a phone's
     const down=Bm.h>Bm.w*1.15, along=down?Bm.h:Bm.w, across=down?Bm.w:Bm.h;
-    const span=Math.min(along,4.2)*0.8, stepx=span/n;
-    const R=Math.max(0.11,Math.min(stepx*0.42,across*0.40)); const L1=+Math.max(0.6,Math.min(1.7,0.62+R*1.7)).toFixed(2);
+    const span=Math.min(along,4.2)*0.74, stepx=span/n;
+    // the circles must clear the short side of the board, and the row's ends must clear the long side
+    const R=Math.max(0.09,Math.min(stepx*0.42, across*0.34, (along/2-span/2)*0.9+across*0.2)); const L1=+Math.max(0.6,Math.min(1.7,0.62+R*1.7)).toFixed(2);
     setSlider('L',L1); setSlider('damp',+rnd(0.042,0.062).toFixed(3)); setSlider('L2',1.05); P.damp2=0.2;
     const w=Math.sqrt(G/L1), f=R*w*rnd(0.95,0.99), per=+rnd(24,30).toFixed(1);
     if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2};
     const home=[axleMoved.x,axleMoved.y], dxs=[];
-    for(let i=0;i<n;i++){ const d=-span/2+stepx*(i+0.5); dxs.push(down?[axleMoved.x,d]:[d,axleMoved.y]); }
+    // the circles orbit the pivot, so the row must be laid about the pivot too: putting it on the old board centre
+    // hangs every panel off to one side and the ends of the row fall off the board
+    for(let i=0;i<n;i++){ const d=-span/2+stepx*(i+0.5); dxs.push(down?[0,d]:[d,0]); }
     const sets=[]; for(let i=0;i<n;i++){ const c=inksOn(board,P0,2+i*2,true); sets.push(med==='marbled'?inksOn(board,P0,6,false):[c[c.length-2],c[c.length-1]]); }
     offsetBoard(dxs[0][0],dxs[0][1]); cols=med==='marbled'?sets[0]:[sets[0][0],sets[0][1],sets[0][0],sets[0][1],sets[0][0],sets[0][1]];
     cx=R; cy=0; cvx=0; cvy=f;
@@ -1190,7 +1197,9 @@ function surprise(force){
     setBoardColour(pick(['#0c0c0e','#14161a','#1a1a1f','#101418']));
     const L1=+rnd(0.9,1.1).toFixed(2); setSlider('L',L1); setSlider('damp',+rnd(0.005,0.009).toFixed(3));
     const rpm=+(pick([-1,1])*rnd(0.5,0.8)).toFixed(2); setSlider('rpm',rpm); bd.ang=0; setSlider('L2',1.05); P.damp2=0.2;
-    const D=+rnd(0.28,0.38).toFixed(2), a=+(D*rnd(0.55,0.7)).toFixed(2), b=+(a*rnd(0.6,0.85)).toFixed(2), th=rnd(0,TAU);
+    const half=Math.min(Bm.w,Bm.h)/2;                                  // the ring plus its loops must sit inside the board
+    const D=+Math.min(rnd(0.28,0.38),Math.max(0.1,0.52*half)).toFixed(2),
+          a=+(D*rnd(0.55,0.7)).toFixed(2), b=+(a*rnd(0.6,0.85)).toFixed(2), th=rnd(0,TAU);
     if(!axleMoved) axleMoved={x:Bm.x+Bm.w/2,y:Bm.y+Bm.h/2}; offsetBoard(-D*Math.cos(th),-D*Math.sin(th));
     const w1=Math.sqrt(G/L1), f=b*w1; cx=a; cy=0; cvx=0; cvy=f;
     const bands=pick([2,3,3,3,4]), band=+(60/(Math.abs(rpm)*bands)).toFixed(1);   // the bands share one full turn
@@ -1235,6 +1244,42 @@ function surprise(force){
     const gap=A0*P.damp*Tp/2, vbar=0.64*A0*w1;                  // mean speed over a swing
     const fMax=Math.max(1.6,0.55*gap*FILM*vbar/1e-6);
     if(fMax<P.flow) setSlider('flow',+fMax.toFixed(1));
+  }
+  /* Fit the figure to the board before letting go. Guessing the size from the starting conditions is not good
+     enough: a precessing ellipse, a coiling rope and a beating pair of pendulums all grow well beyond the swing you
+     let go of. So run the same physics forward on a copy, with nothing drawn, measure how far the pen really strays
+     from the board's centre, and scale the launch to fit. A pendulum's path scales with its starting conditions, so
+     shrinking position and velocity together shrinks the whole figure and changes nothing else about it. */
+  if(!SELF_FIT.includes(fam)){
+    const [cx0,cy0]=bc(), halfW=Bm.w/2, halfH=Bm.h/2, tf=Math.sqrt(2*P.h/G);
+    const extent=(cx,cy,cvx,cvy,bx,by,bvx,bvy)=>{
+      const cz=Math.sqrt(Math.max(0,P.L*P.L-cx*cx-cy*cy)), bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by));
+      const c={p:[cx,cy,cz],v:[cvx,cvy,cz>1e-3?-(cvx*cx+cvy*cy)/cz:0]},
+            b={p:[bx,by,bz],v:[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0]};
+      let ang=bd.ang, mx=0, my=0; const dt=1/120, n=Math.round(45/dt);
+      for(let i=0;i<n;i++){
+        stepPend(c,P.L,P.damp,dt);
+        if(Math.hypot(b.p[0],b.p[1])>1e-4||Math.hypot(b.v[0],b.v[1])>1e-4) stepPend(b,P.L2,P.damp2,dt);
+        ang+=P.rpm*TAU/60*dt;
+        const dx=c.p[0]+c.v[0]*tf-b.p[0]-cx0, dy=c.p[1]+c.v[1]*tf-b.p[1]-cy0;
+        const co=Math.cos(-ang), si=Math.sin(-ang);
+        mx=Math.max(mx,Math.abs(dx*co-dy*si)); my=Math.max(my,Math.abs(dx*si+dy*co));
+      }
+      return [mx,my]; };
+    for(let pass=0;pass<2;pass++){
+      // every launch counts, not just the first: a figure with paint thrown over it lets go a second time, harder
+      let mx=0,my=0;
+      for(const l of [[cx,cy,cvx,cvy],...chain.filter(r=>r.cx!==undefined).map(r=>[r.cx,r.cy,r.cvx,r.cvy])]){
+        const e=extent(l[0],l[1],l[2],l[3],bx,by,bvx,bvy); mx=Math.max(mx,e[0]); my=Math.max(my,e[1]); }
+      let k=Math.min(0.94*halfW/Math.max(mx,1e-4), 0.94*halfH/Math.max(my,1e-4));
+      const cap=Math.min(1.3, 0.86*P.L/Math.max(1e-6,Math.hypot(cx,cy)));
+      if(k>1) k=Math.min(cap,1+(k-1)*0.6);      // grow only gently: filling every board exactly loses the variety
+      if(chain.length&&k>1) k=1;                // a row of launches is spaced deliberately; shrink it, never stretch it
+      k=Math.max(0.3,k);
+      if(Math.abs(k-1)<0.02) break;
+      cx*=k;cy*=k;cvx*=k;cvy*=k; bx*=k;by*=k;bvx*=k;bvy*=k;
+      for(const r of chain) if(r.cx!==undefined){ r.cx*=k;r.cy*=k;r.cvx*=k;r.cvy*=k; }
+    }
   }
   // place both pendulums and go
   const bz=Math.sqrt(Math.max(0,P.L2*P.L2-bx*bx-by*by)); bd.p=[bx,by,bz]; bd.v=[bvx,bvy,bz>1e-3?-(bvx*bx+bvy*by)/bz:0];
@@ -1472,7 +1517,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 function setTheatre(on,opts={}){
   if(on===theatre) return; theatre=on; document.body.classList.toggle('theatre',on);
   try{localStorage.setItem('pp-room',on?'theatre':'studio')}catch(e){}
-  if(on){ if(viewing) setViewing(false); setTray(false); $('#recipe').hidden=true; $('#helpWrap').hidden=true; paused=false; $('#thPause').textContent='Pause';
+  if(on){ if(viewing) setViewing(false); setTray(false); refitBoard();   // no tray in the way now: a board square with the pivot $('#recipe').hidden=true; $('#helpWrap').hidden=true; paused=false; $('#thPause').textContent='Pause';
     if(!opts.silent&&document.documentElement.requestFullscreen&&!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
     if(!autoplay){ autoplay=true; $('#autoplay').checked=true; $('#qPlay').classList.add('on'); }
     if(!running||!cur) theatreNext(); else $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ','');
@@ -1481,7 +1526,7 @@ function setTheatre(on,opts={}){
   else { holdAwake(false); document.body.classList.remove('still'); clearTimeout(stillT); paused=false; setAutoplay(false);
     stopCan(); demo=null; after=null; genPattern=false;   /* the theatre's swing stays in the theatre */
     if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   /* a turntable pattern moved the board off the pivot: put it back */
-    bd.ang=0; straighten=false; if(P.rpm) setSlider('rpm',0); pan={x:0,y:0}; savePan();   /* the studio opens on a square, centred board, the turntable off */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
+    bd.ang=0; straighten=false; if(P.rpm) setSlider('rpm',0); pan={x:0,y:0}; savePan(); refitBoard();   /* the studio opens on a square, centred board above the tray, the turntable off */ if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); if(!phone()) setTray(true); }
 }
 function theatreNext(){ history.length=0; swings=[]; cur=null; rebuild(); listSwings(); autoplay=true; surprise(); $('#theatreTitle').textContent=$('#recipeTitle').textContent.replace('How to: ',''); paused=false; $('#thPause').textContent='Pause'; }
 function wake(){ if(!theatre) return; document.body.classList.remove('still'); clearTimeout(stillT); if(performance.now()<holdBar) return; stillT=setTimeout(()=>document.body.classList.add('still'),3000); }
