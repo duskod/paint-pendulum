@@ -50,6 +50,12 @@ Choosing a custom paint, board or desk colour opens a row at the top of the tray
 
 **Colours** (in the tray, and a button on the theatre bar): the theatre paints on a mixture of dark and light boards, or always **Dark**, or always **Light**. The paints still vary within the scheme, so the pictures stay different from one another. It is remembered on the device, and `?theatre&scheme=dark` pins it for a screen saver.
 
+**As a desktop wallpaper.** Open `https://pendulum.clockerly.com/?wallpaper` in any wallpaper app that accepts a web
+address. On Windows, [Lively Wallpaper](https://github.com/rocksdanister/lively) is free and open source and does the
+job (it can use the same page as a screen saver too); Wallpaper Engine on Steam also works. `?wallpaper` paints exactly
+as the theatre does but does **not** hold the screen awake, so the machine can still go to sleep; `?theatre` holds it
+awake on purpose, which is what a screen saver wants. Add `&scheme=dark` or `&scheme=light` to either.
+
 **Movie mode** (on by default) fades the controls and rig away five seconds after a pattern starts if nothing is touched; move the mouse, touch the screen or press a key and they return. **View** (or `v`, or View on the phone bar) does the same on demand: rig, tray and readouts all go, and a tap or any key brings them back. **Hide rig** (`r`) hides just the can, string and handles. Press `?` for the full list of controls.
 
 Keys: `space` catch, `z` undo, `c` clear, `s` save, `v` view, `r` rig, `f` fullscreen, `h` hide the tray, arrows pan, `0` recentre, `?` help.

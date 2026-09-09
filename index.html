@@ -344,6 +344,7 @@
           <dt>Example menu</dt><dd>watch a pull demonstrated, then the pattern; a card lists the settings and gestures to repeat it by hand</dd>
           <dt>Swing chips</dt><dd>hover to see one swing alone; click to recolour or remove it</dd>
           <dt>Colours</dt><dd>the theatre paints on a mixture of dark and light boards, or always dark, or always light. The paints still vary within it. Add <kbd>&amp;scheme=dark</kbd> to the screen saver address to pin it there too</dd>
+          <dt>As a desktop wallpaper</dt><dd>open <kbd>/?wallpaper</kbd> in a wallpaper app that takes a web address, such as Lively Wallpaper on Windows. It paints as the theatre does but lets the machine sleep, which <kbd>?theatre</kbd> deliberately does not</dd>
           <dt>Gallery: How to</dt><dd>shows the recipe under the picture without leaving the gallery; press it again to hide it</dd>
           <dt>Coil (slider)</dt><dd>how thickly the paint is poured. Turned up, the falling stream buckles and coils like a rope of syrup on a plate: tight loops where the swing dawdles at its ends, pulled straight through the fast middle. A pen never coils</dd>
           <dt>Signed</dt><dd>a small signature sits in the board's corner and on every saved picture, as a painting is signed; untick it in the tray for a blank board</dd>
@@ -1549,7 +1550,9 @@ function setViewing(on,auto=false){
    the rig and every control are gone; a bar appears on movement with Next, Pause, Save, Studio */
 let theatre=false, paused=false, stillT=null, holdBar=0, wakeLock=null;
 /* keep the display awake while the theatre plays (a screensaver that lets the screen sleep is no screensaver) */
+let wallpaper=false;   // set by ?wallpaper: the same theatre, but behind the icons rather than instead of them
 async function holdAwake(on){
+  if(wallpaper) return;                                   // a wallpaper must let the machine go to sleep
   try{ if(on&&!wakeLock&&navigator.wakeLock){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null}); }
        else if(!on&&wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(e){ wakeLock=null; }
 }
@@ -1772,7 +1775,8 @@ addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
   const q=new URLSearchParams(location.search);
   if(q.get('source')==='play') track('android-app');
   if(q.has('scheme')) setScheme(q.get('scheme'),true);
-  if(q.has('theatre')){ try{localStorage.setItem('pp-seen','1')}catch(e){} setTheatre(true,{silent:true}); document.body.classList.add('still'); track('screensaver'); return; }
+  if(q.has('wallpaper')){ wallpaper=true; track('wallpaper'); }   // Lively, Wallpaper Engine and the like
+  if(q.has('theatre')||wallpaper){ try{localStorage.setItem('pp-seen','1')}catch(e){} setTheatre(true,{silent:true}); document.body.classList.add('still'); track('screensaver'); return; }
   if(!seen){ try{localStorage.setItem('pp-seen','1')}catch(e){}
     holdBar=performance.now()+20000;   // keep the bar in view through the first pattern, so the Studio is discoverable
     setTheatre(true,{silent:true}); wake();
