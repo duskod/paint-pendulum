@@ -117,6 +117,9 @@
   #recipe header b{font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase}
   #recipe ol{margin:0;padding-left:18px;display:grid;gap:4px}
   #recipe li::marker{color:var(--muted)}
+  #recipeSeed{display:flex;align-items:center;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid var(--tray-edge);font:400 11px var(--body);color:var(--muted)}
+  #recipeSeed code{font:500 11px var(--mono);color:var(--ink);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:1px 6px;user-select:all}
+  #recipeSeed button{margin-left:auto}
   #recipe .k{font:500 11px var(--mono);background:#2a231c;border:1px solid #4a3d31;border-radius:5px;padding:0 5px;color:var(--ink);white-space:nowrap}
   #recipe header b{cursor:pointer}
   @media (max-width:720px){ #recipe.mini ol{display:none} #recipe.mini header{margin-bottom:0} #recipe header b::after{content:" \25BE";color:var(--muted)} #recipe.mini header b::after{content:" \25B8"}
@@ -283,6 +286,7 @@
 <aside id="recipe" hidden aria-label="How to reproduce this example">
   <header><b id="recipeTitle"></b><button class="b sm" id="recipeClose">Close</button></header>
   <ol id="recipeSteps"></ol>
+  <div id="recipeSeed" hidden><span>Seed</span> <code id="seedText"></code><button class="b sm" id="seedCopy" title="Copy a link that repaints this exact picture">Copy link</button></div>
 </aside>
 <nav id="theatreBar" aria-label="Theatre controls">
   <span id="theatreTitle"></span>
@@ -421,6 +425,47 @@ let flowing=false, running=false, grabbed=false, level=1, T=0, angAcc=0, lastAng
 function turnCan(dt){ if(grabbed) return; twA+=(running?P.twist:Math.max(P.twist,0.06))*TAU*dt; }
 
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* Seeds. A picture nobody else can call up again is worth very little, so every pattern the machine composes is
+   drawn from a seed and can be repainted from it exactly. Two independent streams, because they age differently:
+   `cRnd` settles the composition — the figure, the palette, the string lengths, the phases — and is quoted on the
+   recipe card; `pRnd` scatters the droplets and stirs the marbling, thousands of calls a second. Keeping them
+   apart means a change to the paint code can never invalidate a seed somebody has already shared. */
+const SEED_V=1;
+let cRnd=Math.random, pRnd=Math.random, curSeed=null;
+const rand32=()=>{ try{ return crypto.getRandomValues(new Uint32Array(1))[0]>>>0; }catch(e){ return Math.floor(Math.random()*4294967296)>>>0; } };
+/* The token is one copy-paste unit. It carries the seed and then everything else the composition reads off the
+   room it was painted in — the board's shape and the colour scheme — because without those a shared link would
+   paint a different picture on a different screen, which is the whole thing we are trying to buy. */
+/* The board is part of the recipe, not decoration. Every figure is scaled to fit it, and the rule that decides a
+   picture is finished reads the paint back off it, so a board a few millimetres out paints a visibly different
+   picture. The token therefore carries the rectangle itself — width, height and where its centre sits relative to
+   the pivot — to the millimetre, in metres, independent of anybody's screen. Packed by arithmetic rather than bit
+   shifts because the five fields together need more than the 32 bits JavaScript's bitwise operators work in. */
+const MM=1000, mm=v=>Math.round(v*MM);
+function packSeed(seed,g,scheme){
+  const s=scheme==='dark'?1:scheme==='light'?2:0, cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const w=cl(mm(g.w),1,4095), h=cl(mm(g.h),1,4095), cx=cl(mm(g.cx)+1024,0,2047), cy=cl(mm(g.cy)+1024,0,2047);
+  return (seed>>>0).toString(36)+'-'+(((((SEED_V*4+s)*4096+w)*4096+h)*2048+cy)*2048+cx).toString(36);
+}
+function unpackSeed(tok){
+  const m=String(tok||'').trim().toLowerCase().match(/^([0-9a-z]{1,7})(?:-([0-9a-z]{1,12}))?$/);
+  if(!m) return null;
+  const seed=parseInt(m[1],36); if(!isFinite(seed)) return null;
+  if(!m[2]) return {seed:seed>>>0,geom:null,scheme:null,v:SEED_V};
+  let n=parseInt(m[2],36); if(!isFinite(n)) return null;
+  const cx=n%2048; n=Math.floor(n/2048);
+  const cy=n%2048; n=Math.floor(n/2048);
+  const h=n%4096;  n=Math.floor(n/4096);
+  const w=n%4096;  n=Math.floor(n/4096);
+  const sc=n%4, v=Math.floor(n/4);
+  if(!w||!h) return null;
+  return {seed:seed>>>0,geom:{w:w/MM,h:h/MM,cx:(cx-1024)/MM,cy:(cy-1024)/MM},
+          scheme:sc===1?'dark':sc===2?'light':null,v};
+}
+/* the absolute form is what gets copied and shared; the address bar is rewritten with the relative one, which
+   also works from a file:// page, where an absolute URL counts as another origin and is refused */
+const seedURL=t=>location.origin+location.pathname+'?r='+t;
+const seedRel=t=>location.pathname+'?r='+t;
 
 /* the tray sits over the foot of the window, so a board fitted to the whole window paints its downswing behind it */
 /* the tray is still growing when the first layout runs (chips, fonts), so a board fitted to it then still ends up
@@ -428,6 +473,25 @@ function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1
 let autoBoard=false;
 function refitBoard(){ if(!autoBoard||swings.length) return; const b=Bm; Bm=null; resize();
   if(b&&Math.abs(b.h-Bm.h)<1&&Math.abs(b.y-Bm.y)<1) return; }
+/* Repainting a shared seed on a screen it was not painted on: every figure is fitted to the board, so the board
+   has to be given back the shape it had, letter-boxed into whatever room this screen has. Same picture, more or
+   fewer pixels. Marked as the painter's own board so nothing refits it back. */
+/* The token holds the board to the millimetre, so the board is put on a millimetre before anything is composed:
+   a move of at most half a millimetre, which is well under a pixel, and it makes the record exact. */
+function snapBoard(){
+  const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const w=cl(Math.round(Bm.w*MM),1,4095)/MM, h=cl(Math.round(Bm.h*MM),1,4095)/MM,
+        cx=cl(Math.round((Bm.x+Bm.w/2)*MM),-1024,1023)/MM, cy=cl(Math.round((Bm.y+Bm.h/2)*MM),-1024,1023)/MM;
+  if(Bm.w!==w||Bm.h!==h||Bm.x!==cx-w/2||Bm.y!==cy-h/2){ Bm={x:cx-w/2,y:cy-h/2,w,h}; saveBoard(); boardPx(); rebuild(); }
+  return {w,h,cx,cy};
+}
+/* Repainting a shared picture: give the board back the exact rectangle it was painted on, in metres. The screen it
+   lands on decides only how many pixels that is worth. Marked as the painter's own board so nothing refits it;
+   Fit board puts it back. */
+function setBoardGeom(g){
+  if(!g||!(g.w>0)||!(g.h>0)) return;
+  Bm={x:g.cx-g.w/2,y:g.cy-g.h/2,w:g.w,h:g.h}; autoBoard=false; saveBoard(); boardPx(); rebuild();
+}
 function bottomRoom(m){ if(phone()){ let q=52; try{ q=$('#quick').offsetHeight||52; }catch(e){}
     return Math.max(m,q+28); }                       // clear of the phone bar, so the bottom edge can be grabbed
   try{ if(trayPos&&trayPos.dock==='bottom'&&tray&&!tray.classList.contains('hidden'))
@@ -514,16 +578,51 @@ let curSpeed=0, marbK=0, marbT=0, coilPh=0;
                somewhere; when it stops climbing, everything after it is over-painting.
    Either sign ends the swing (or moves a panel row on to its next panel). A pen is untouched by both and
    still runs its full minute and a half. */
-const inkStats=(()=>{ const CW=240, CH=135, c=document.createElement('canvas'); c.width=CW; c.height=CH;
+/*   hot     - the fill of the BUSIEST small patch. A harmonograph's lobes all cross at the middle, so the centre
+               saturates into a solid snarl long before the envelope is finished — "an exquisite frame around a
+               failure", as one of the judges of these put it. Neither number above can see that: coverage is a
+               whole-board average and detail is dominated by the miles of clean line round the outside. The
+               highest local fill can. Measured over 16x16 windows of the sample, stride 4, through an integral
+               image so each window costs one subtraction. */
+const inkStats=(()=>{ const CW=240, CH=135, BW=16, ST=4, c=document.createElement('canvas'); c.width=CW; c.height=CH;
   const g=c.getContext('2d',{willReadFrequently:true});
+  const S=new Int32Array((CW+1)*(CH+1));   // row 0 and column 0 stay zero and are never written
   return ()=>{ try{ g.clearRect(0,0,CW,CH); g.drawImage(paint,0,0,CW,CH);
     const d=g.getImageData(0,0,CW,CH).data; let ink=0, edge=0;
     for(let y=1;y<CH-1;y++) for(let x=1;x<CW-1;x++){ const i=((y*CW+x)<<2)+3;
       if(d[i]<=128) continue; ink++;
       if(d[i-4]<=128||d[i+4]<=128||d[i-CW*4]<=128||d[i+CW*4]<=128) edge++; }
-    return {cov:ink/(CW*CH), detail:ink?edge/ink:0}; }catch(e){ return null; } }; })();
+    for(let y=0;y<CH;y++){ let run=0; const o=(y+1)*(CW+1), q=y*(CW+1);
+      for(let x=0;x<CW;x++){ if(d[((y*CW+x)<<2)+3]>128) run++; S[o+x+1]=S[q+x+1]+run; } }
+    let hot=0;
+    for(let y=0;y+BW<=CH;y+=ST) for(let x=0;x+BW<=CW;x+=ST){
+      const n=S[(y+BW)*(CW+1)+x+BW]-S[(y+BW)*(CW+1)+x]-S[y*(CW+1)+x+BW]+S[y*(CW+1)+x];
+      if(n>hot) hot=n; }
+    return {cov:ink/(CW*CH), detail:ink?edge/ink:0, hot:hot/(BW*BW)}; }catch(e){ return null; } }; })();
 let segT=0, covT=0, covLog=[], peakDetail=0, genPattern=false, showT=0;   // segT: since this launch, showT: since this pattern
-function resetCoverage(){ segT=0; covT=0; covLog.length=0; peakDetail=0; }
+/* ENDING A PICTURE. A panel of critics shown forty of these named the same two faults in every round: a line
+   trailing off the edge of the canvas, which reads as a plotter switched off rather than a drawing finished, and
+   a snarl of fused line where the curve overdraws its own centre. Both are about how a run ends.
+
+   WHEN it ends: a third stop sign joins the two above. Measured over 44 patterns, a pen never takes its busiest
+   patch past 0.63 however long it runs, while every thick medium climbs past 0.90 and eight of them reached a
+   completely solid 1.00 — so 0.90 tells "dense" from "fused" and leaves a pen alone by construction. The old
+   eighty-second cap lived in autoTick, on the wall clock, and simply cut the paint off wherever it happened to
+   be; it now asks for an ending here instead, two seconds before that cap.
+
+   HOW it ends: the flow tapers to nothing over CLOSE_TAPER instead of stopping dead, so the stroke closes to a
+   point. This turned out to be the whole of the fault: measured over 90 runs on three board shapes, the last
+   stroke used to be 1.9x the run's median width — the line was ending FATTER than average, because a slowing
+   pendulum pools paint, and a fat square stub is exactly what reads as a severed line. Tapering takes it to
+   0.3x. A first version also waited for the pen to come in off the board's edge before closing; that was
+   measured over the same 90 runs and did nothing (no run ever ended within a quarter of the board of an edge —
+   the launch fit already sees to that), so it was removed rather than shipped on the strength of the idea. */
+const CLOSE_TAPER=0.9, HOT_FUSED=0.90;
+let ending=0, endT=0;                                   // 0 none, 1 tapering out
+function beginEnding(){ if(!ending&&flowing) { ending=1; endT=0; } }
+function endReached(){ ending=0; endT=0;
+  if(relaunch.length) chainT=relaunch[0].t; else { flowing=false; running=false; settleBoard(); } }
+function resetCoverage(){ segT=0; covT=0; covLog.length=0; peakDetail=0; ending=0; endT=0; }
 function stamp(x,y,w,nx,ny,k){
   if(!cur) return;
   if(P.mode==='ribbon'){
@@ -531,18 +630,17 @@ function stamp(x,y,w,nx,ny,k){
     dab(x-rx*0.25*w,y-ry*0.25*w,0.5*w,0); dab(x+rx*0.35*w,y+ry*0.35*w,0.42*w,1);
   }else if(P.mode==='marbled') dab(x,y,0.55*w,marbK);
   else dab(x,y,0.55*w,k);
-  if(P.splat>0&&P.mode!=='pen') splatter(x,y,w,nx,ny,P.mode==='marbled'?marbK:P.mode==='ribbon'?(Math.random()<0.5?0:1):k);
 }
 /* paint flung off the stream: fine droplets scattered wider the faster the can moves, blobs where it dawdles */
 function splatter(x,y,w,nx,ny,k){
   const sp=curSpeed, fast=Math.min(1,sp/1.4);
-  if(Math.random()<P.splat*(0.06+0.5*fast)){
-    const ang=Math.random()*TAU, d=w*(0.8+Math.random()*3.5)+fast*ppm*0.06*Math.random();
-    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,Math.max(0.7,w*(0.12+Math.random()*0.45)),k);
+  if(pRnd()<P.splat*(0.06+0.5*fast)){
+    const ang=pRnd()*TAU, d=w*(0.8+pRnd()*3.5)+fast*ppm*0.06*pRnd();
+    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,Math.max(0.7,w*(0.12+pRnd()*0.45)),k);
   }
-  if(sp<0.2&&Math.random()<P.splat*0.02){
-    const ang=Math.random()*TAU, d=w*(0.3+Math.random()*1.2);
-    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,w*(0.5+Math.random()*0.7),k);
+  if(sp<0.2&&pRnd()<P.splat*0.02){
+    const ang=pRnd()*TAU, d=w*(0.3+pRnd()*1.2);
+    dab(x+Math.cos(ang)*d,y+Math.sin(ang)*d,w*(0.5+pRnd()*0.7),k);
   }
 }
 function drawSwing(c,sw,alpha,ox=0,oy=0){
@@ -575,11 +673,24 @@ function nozzleOffset(k){
   const n=nozzles(); if(n===1) return [0,0];
   const a=twA,d=(k-(n-1)/2)*P.gap; return [Math.cos(a)*d,Math.sin(a)*d];
 }
+/* Paint flung off the stream is now rolled once every fixed step ALONG THE PATH rather than once per stamp.
+   The stamps are subdivided in screen pixels, so rolling per stamp handed a high-resolution screen half as many
+   droplets again as a low one — a real bug in its own right, and one that made the same seed paint two different
+   pictures on two different machines. The step is the spacing the stamps use, measured in metres. */
+let splatRun=[];
 function stampRun(k,px,py,w){
   const s=sprev[k];
   if(s){
     const d=Math.hypot(px-s[0],py-s[1]),n=Math.max(1,Math.ceil(d/Math.max(0.6,0.3*w)));
     for(let i=1;i<=n;i++) stamp(s[0]+(px-s[0])*i/n,s[1]+(py-s[1])*i/n,w,nprev[0],nprev[1],k);
+    if(P.splat>0&&P.mode!=='pen'){
+      // 0.75 mm is the old 0.6-pixel floor at the ~800 px/m a desktop board works out at, which is where the
+      // splatter was judged by eye; the 0.3*w term was already independent of the screen
+      const stepM=Math.max(0.00075,0.3*w/ppm);
+      splatRun[k]=(splatRun[k]||0)+d/ppm;
+      while(splatRun[k]>=stepM){ splatRun[k]-=stepM;
+        splatter(px,py,w,nprev[0],nprev[1],P.mode==='marbled'?marbK:P.mode==='ribbon'?(pRnd()<0.5?0:1):k); }
+    }
   } else stamp(px,py,w,nprev[0],nprev[1],k);
   sprev[k]=[px,py];
 }
@@ -603,19 +714,27 @@ function step(dt){
   T+=dt;
   const tf=Math.sqrt(2*P.h/G);
   const q=toBoard(can.p[0]+can.v[0]*tf,can.p[1]+can.v[1]*tf);
+  if(genPattern&&flowing&&T>78) beginEnding();          // the old hard cap, asked for politely
+  let endK=1;
+  if(ending){
+    endT+=dt;
+    if(endT>=CLOSE_TAPER){ endReached(); return; }
+    const u=1-endT/CLOSE_TAPER; endK=u*u;               // squared, so it closes to a point rather than a stub
+  }
   if(qprev){
     const vx=(q[0]-qprev[0])/dt,vy=(q[1]-qprev[1])/dt,sp=Math.hypot(vx,vy);
     if(sp>0.02) nprev=[-vy/sp,vx/sp];
     if(flowing){
-      const qf=P.flow*1e-6*(0.3+0.7*level);
+      const qf=P.flow*1e-6*(0.3+0.7*level)*endK;
       if(P.mode!=='pen') level=Math.max(0,level-qf*dt/V0);
       // line width = paint per metre of travel; a slowing can pools, but paint spreads at a finite rate, so
       // the width chases its target instead of jumping to a disc at each turning point
       let wt=Math.min(0.028,Math.max(0.0012,qf/FILM/Math.max(sp,0.08)));
       if(P.mode==='pen') wt=0.0016;                       // a pen: same thin line at any speed, never pools
+      if(endK<1) wt*=endK;                                // a pen's width ignores the flow, so taper it directly
       if(wcur<0) wcur=wt; const rate=0.05*dt; wcur+=Math.max(-rate*2,Math.min(rate,wt-wcur));
-      const w=Math.max(1.2,wcur*ppm), n=nozzles(); curSpeed=sp;
-      if(P.mode==='marbled'){ marbT-=dt; if(marbT<=0){ marbK=Math.floor(Math.random()*6); marbT=0.12+Math.random()*0.8; } }
+      const w=Math.max(endK<1?0.4:1.2,wcur*ppm), n=nozzles(); curSpeed=sp;   // let a closing stroke thin past the usual floor
+      if(P.mode==='marbled'){ marbT-=dt; if(marbT<=0){ marbK=Math.floor(pRnd()*6); marbT=0.12+pRnd()*0.8; } }
       /* liquid rope coiling. A thick stream falling on the board cannot be absorbed as fast as it arrives,
          so it buckles and coils, the way a rope of syrup does on a plate. Which mark you get is set by the
          Strouhal number, the pen's speed against the coil's own speed and radius: dawdling gives closed loops,
@@ -654,7 +773,8 @@ function step(dt){
       let done=segT>floorT&&peakDetail>0&&m.detail<0.55*peakDetail;          // the passes have fused
       if(!done&&segT>26&&m.cov>0.02){ let b=null; for(const e of covLog) if(segT-e[0]>=14) b=e;
         if(b&&(m.cov-b[1])/m.cov<0.03) done=true; }                          // nothing new is appearing
-      if(done){ if(relaunch.length) chainT=relaunch[0].t; else { flowing=false; running=false; settleBoard(); } }
+      if(!done&&segT>floorT&&m.hot>=HOT_FUSED) done=true;                     // a patch has gone solid: the centre is fusing
+      if(done) beginEnding();
     }
   }
 }
@@ -836,7 +956,7 @@ view.addEventListener('pointerdown',e=>{
     bd.v=[0,0,0]; view.classList.add('grabbing'); $('#hint').classList.add('gone'); return; }
   if(h){ resizing=h; view.style.cursor=CURS[h]; if(h==='move') moveFrom={bx:Bm.x,by:Bm.y,mx:(sx-W/2)/ppm,my:(sy-H/2)/ppm}; return; }
   view.classList.add('grabbing'); if(!showRig) setRig(true); if(autoplay) setAutoplay(false);
-  genPattern=false; resetCoverage();
+  genPattern=false; clearSeed(); resetCoverage();
   grabbed=true; running=false; flowing=false; stillFor=0; relaunch=[];
   const q=ptr(e); placeCan(q); hist=[{q,t:performance.now()}];
   $('#hint').classList.add('gone');
@@ -895,6 +1015,9 @@ function launch(){
   remember_state();
   cur={cols:cols.slice(),pts:[],mode:P.mode}; swings.push(cur); listSwings();
   running=true; flowing=true; level=1; T=0; angAcc=0; lastAng=null; qprev=null; sprev=[]; stillFor=0; wcur=-1;
+  /* Start every swing from a known phase. The can's twist, the marbling and the coil all ran on the wall clock
+     while nothing was happening, so how long the machine had been sitting idle leaked into the picture. */
+  twA=0; marbK=0; marbT=0; coilPh=0; splatRun=[];
   if(!showRig) setRig(true); $('#hint').classList.add('gone'); lastActivity=performance.now();   // movie mode counts from here
 }
 /* drive the rig: place the can (metres from the pivot's rest point) and the board pendulum, give each a velocity, go */
@@ -991,6 +1114,22 @@ const RECIPES={
 function showRecipe(key){ const r=RECIPES[key]; if(!r) return;
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':''; $('#recipeTitle').textContent='How to: '+$('#preset').querySelector(`option[value="${key}"]`).textContent; $('#recipeSteps').innerHTML=r.map(t=>'<li>'+t+'</li>').join(''); recipeMini(); $('#recipe').hidden=false; }
 $('#recipeClose').addEventListener('click',()=>{$('#recipe').hidden=true});
+/* The seed is shown on the card and written into the address bar, so the picture on screen can always be sent to
+   somebody else — or ordered as a print — without the image itself being kept anywhere. */
+function showSeed(){
+  const on=!!curSeed; $('#recipeSeed').hidden=!on; if(!on) return;
+  $('#seedText').textContent=curSeed.token;
+  // `history` here is the app's own undo stack, which shadows the browser's: go through window explicitly
+  try{ window.history.replaceState(null,'',seedRel(curSeed.token)); }catch(e){}
+}
+function clearSeed(){ curSeed=null; try{ $('#recipeSeed').hidden=true; }catch(e){}
+  try{ window.history.replaceState(null,'',location.pathname); }catch(e){} }
+$('#seedCopy').addEventListener('click',async()=>{
+  if(!curSeed) return;
+  const url=seedURL(curSeed.token);
+  try{ await navigator.clipboard.writeText(url); toast('Link copied · it repaints this exact picture'); }
+  catch(e){ toast(url,6000); }
+});
 $('#recipeTitle').addEventListener('click',()=>{ if(phone()) $('#recipe').classList.toggle('mini'); });
 const recipeMini=()=>$('#recipe').classList.toggle('mini',phone());   // on a phone the card opens folded, so it does not cover the board
 const PRESETS={
@@ -1061,7 +1200,10 @@ const PRESETS={
    pen that can lace for a minute and a half, or a fat two-tone ribbon, a rake of holes in a line, one hole
    wide open, or several paints tipped in together and poured hard enough to fling droplets. A thick medium
    lays a broad band and empties the can, so it is given fewer loops on purpose or it fills in to mud. */
-const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)], cm=v=>Math.round(v*100)+' cm';
+const rnd=(a,b)=>a+cRnd()*(b-a), pick=a=>a[Math.floor(cRnd()*a.length)], cm=v=>Math.round(v*100)+' cm';
+/* a real shuffle, not `sort(()=>rnd()-0.5)`: an inconsistent comparator is allowed to give different answers in
+   different engines, which would have a seed painting one picture in Chrome and another in Firefox */
+const shuffled=a=>{const o=a.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(cRnd()*(i+1));const t=o[i];o[i]=o[j];o[j]=t}return o};
 const lum=h=>{const n=parseInt(h.slice(1),16);return (0.2126*(n>>16)+0.7152*((n>>8)&255)+0.0722*(n&255))/255};
 const oneCol=c=>[c,c,c,c,c,c];
 const apart=(a,b)=>Math.abs(lum(a)-lum(b));
@@ -1076,12 +1218,12 @@ function inksOn(board,P0,n,spread){
   const ok=c=>apart(c,board)>(spread?0.28:0.18), out=[];
   for(const c of P0.slice(1)) if(ok(c)&&(!spread||out.every(o=>{const h=hueOf(c),k=hueOf(o);
     return h===null||k===null||Math.min(Math.abs(k-h),360-Math.abs(k-h))>45}))) out.push(c);
-  for(const c of INKS.slice().sort(()=>Math.random()-0.5)) if(out.length<n&&ok(c)) out.push(c);
+  for(const c of shuffled(INKS)) if(out.length<n&&ok(c)) out.push(c);
   while(out.length<n) out.push(out[out.length-1]||(lum(board)<0.5?'#f2f4f7':'#171717'));
   return out.slice(0,n);
 }
 /* set the nozzle, the flow and the colours; returns the sentence the recipe card uses for it */
-const maybeCoil=(lo,hi,p)=>{ if(Math.random()<p){ setSlider('coil',+rnd(lo,hi).toFixed(2)); return true; } return false; };
+const maybeCoil=(lo,hi,p)=>{ if(cRnd()<p){ setSlider('coil',+rnd(lo,hi).toFixed(2)); return true; } return false; };
 function useMedium(m,P0,board){
   if(m==='pen'){ setMode('pen'); cols=oneCol(inkOn(board,P0.slice(1)));
     return 'A pen: the same thin line at any speed, so it can draw for a minute and a half without filling in.'; }
@@ -1126,22 +1268,44 @@ const MOVERS=['turntable','triptych'];
 const SELF_FIT=['triptych'];
 let autoplay=false, autoT=null, surpriseCount=0, axleMoved=null, lastFam=null;
 function freshBoard(){ if(!swings.length) return; remember_state(); swings=[]; cur=null; rebuild(); listSwings(); }
-function surprise(force){
+function surprise(force,opts){
   if(typeof force!=='string') force=null;   // never let an event object through as a family name
+  opts=opts||{};
+  /* Everything below this line takes its randomness from `cRnd`, so the whole composition follows from the seed.
+     A replay is handed one, together with the board shape and the colour scheme it was painted under; anything
+     else rolls a fresh one. `pRnd` is seeded from the same number but offset, so the two streams never overlap. */
+  const replay=opts.seed!==undefined&&opts.seed!==null;
   cancelGrab(); stopCan(); demo=null; after=null; clearTimeout(autoT); if(!theatre) track('surprise');
-  if(!theatre&&!autoplay) freshBoard();   // pressed by hand: a clean board, the old picture one Undo away (twice)
-  resetCoverage(); genPattern=true; showT=0;
+  if(replay){
+    if(axleMoved){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }   // put a turntable's axle back first
+    if(opts.scheme) setScheme(opts.scheme,true);
+    setBoardGeom(opts.geom);
+  }
+  if(replay||(!theatre&&!autoplay)) freshBoard();   // pressed by hand: a clean board, the old picture one Undo away (twice)
+  snapBoard();                                      // settle the shape before the mix is read off it
   const mix=(Bm&&Bm.w>Bm.h*1.5)?(theatre?THEATRE_MIX:STUDIO_MIX).concat(['triptych','triptych'])
                                :(theatre?THEATRE_MIX:STUDIO_MIX);   // a wide board wants figures that use the width
-  let fam=force||pick(mix);
-  if(!force&&fam===lastFam) fam=pick(mix);   // one re-roll: never the same figure twice running
-  lastFam=fam;
+  /* The figure has to follow from the seed alone. The old no-repeat guard drew a second time from the same stream
+     whenever a figure came up twice running — which a replay, having no history to compare against, never did, so
+     the whole stream slipped by one draw and painted something else entirely. The guard now throws the seed away
+     and rolls a new one, which keeps "never the same figure twice" without the composition depending on history. */
+  let seed=(replay?opts.seed:rand32())>>>0;
+  const famOf=sd=>mix[Math.floor(mulberry(sd)()*mix.length)];
+  if(!replay&&!force) for(let i=0;i<6&&famOf(seed)===lastFam;i++) seed=rand32();
   // the turntable and the panel row move the board off the pivot; put it back for the figures that don't
-  if(axleMoved&&!MOVERS.includes(fam)){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }
-  const pal=Math.floor(Math.random()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
+  if(axleMoved&&!MOVERS.includes(force||famOf(seed))){ offsetBoard(axleMoved.x,axleMoved.y); axleMoved=null; }
+  const geom=snapBoard();                           // settle the centre after any axle was put back
+  cRnd=mulberry(seed); pRnd=mulberry((seed^0x9E3779B9)|0);
+  curSeed={seed,geom,scheme,token:packSeed(seed,geom,scheme)};
+  resetCoverage(); genPattern=true; showT=0;
+  /* the draw happens either way. Short-circuiting it when a figure is forced (the harness does that) left the
+     stream one draw ahead of a replay, which has no `force`, so the token painted a different picture. */
+  const famRoll=pick(mix), fam=force||famRoll;
+  lastFam=fam;
+  const pal=Math.floor(cRnd()*(PAIRS.length-1)); pickPalette(pal); const P0=PAIRS[pal];
   const darkBoards=['#0c0c0e','#39414a','#1f2a44','#1f4e9c','#2b1a20','#14161a','#3a2a1a','#101418','#1a1a1f'],
         lightBoards=['#ede4d0','#f1ede4','#efe6d3','#dfe6ee','#f6f3ee','#e8dfc8'];
-  const dark=scheme==='dark'?true:scheme==='light'?false:(fam==='turntable'||Math.random()<0.58);
+  const dark=scheme==='dark'?true:scheme==='light'?false:(fam==='turntable'||cRnd()<0.58);
   const board=pick(dark?darkBoards:lightBoards); setBoardColour(board);
   const med=pick(MEDIA[fam]);
   const L=+rnd(1.3,2.0).toFixed(2); setSlider('L',L); setSlider('rpm',0); bd.ang=0; straighten=false; setSlider('splat',0); setSlider('twist',0); setSlider('flow',2); setSlider('gap',2); setSlider('coil',0);
@@ -1159,7 +1323,7 @@ function surprise(force){
     return phase; };
   const circle=(A,frac)=>{ const w=Math.sqrt(G/P.L); cx=A; cy=0; cvx=0; cvy=A*w*frac; };   // a near-circular swing
   if(fam==='harmonograph'){ title='Harmonograph';
-    const ratio=Math.random()<0.5?rnd(0.955,0.985):rnd(1.015,1.045); air(0.014,0.028);
+    const ratio=cRnd()<0.5?rnd(0.955,0.985):rnd(1.015,1.045); air(0.014,0.028);
     const a=rnd(0,TAU);   // where the can is pulled out to
     // the board has to swing ACROSS that line, not along it: along it, the two motions cancel to a streak
     const ph=boardSwing(ratio,a+pick([1,-1])*rnd(Math.PI*0.3,Math.PI*0.7),rnd(0.26,0.4));
@@ -1181,7 +1345,7 @@ function surprise(force){
     steps.push(`Then the can: pull it ${cm(A)} to the right and flick it upward as you let go (an ellipse), ${ph}.`);
     why=`Periods ${a}:${b} under an elliptical swing: the ellipse is folded into ${b} lobes that slowly turn as the ratio is a touch off exact.`;
   } else if(fam==='lattice'){ title=thick(med)?'Coil':'Lattice';
-    const ratio=Math.random()<0.5?rnd(0.95,0.985):rnd(1.015,1.05); air(0.012,0.024);
+    const ratio=cRnd()<0.5?rnd(0.95,0.985):rnd(1.015,1.05); air(0.012,0.024);
     setSlider('rpm',+(pick([-1,1])*rnd(0.15,0.5)).toFixed(2));
     const a=rnd(0,TAU);
     const ph=boardSwing(ratio,a+pick([1,-1])*rnd(Math.PI*0.3,Math.PI*0.7),rnd(0.24,0.36));
@@ -1224,9 +1388,9 @@ function surprise(force){
     setSlider('damp',+rnd(0.005,0.011).toFixed(3));
     const ratio=a/b, L2=+(L*ratio*ratio).toFixed(2); setSlider('L2',L2); P.damp2=rnd(0.005,0.011);
     const w1=Math.sqrt(G/L), w2=Math.sqrt(G/L2);
-    const counter=Math.random()<0.85, s2=counter?-1:1, pts=counter?a+b:Math.abs(b-a);
+    const counter=cRnd()<0.85, s2=counter?-1:1, pts=counter?a+b:Math.abs(b-a);
     // k = (A1 w1)/(A2 w2): 1 is the cusp, below it the points stay looped, above it they turn inside out
-    const k=Math.random()<0.7?rnd(0.93,1.07):(Math.random()<0.72?rnd(0.55,0.82):rnd(1.3,1.7));
+    const k=cRnd()<0.7?rnd(0.93,1.07):(cRnd()<0.72?rnd(0.55,0.82):rnd(1.3,1.7));
     let A1=rnd(0.26,0.34), A2=Math.min(0.52,Math.max(0.06,A1*w1/(w2*k)));
     const tot=A1+A2; if(tot>0.54){ const sc=0.54/tot; A1*=sc; A2*=sc; }
     bx=A2; by=0; bvx=0; bvy=s2*A2*w2;
@@ -1329,6 +1493,7 @@ function surprise(force){
   title=title+' #'+(++surpriseCount);
   $('#recipeTitle').textContent='How to: '+title; $('#recipeSteps').innerHTML=steps.map(t=>'<li>'+t+'</li>').join('');
   const right=!phone()&&trayPos.dock==='right'; $('#recipe').style.right=right?'auto':''; $('#recipe').style.left=right?'14px':'';
+  showSeed();
   $('#recipe').hidden=autoplay||phone()||theatre; $('#theatreTitle').textContent=title; if(!theatre) toast(title+(autoplay?' · auto-play':''),3000);
   if(phone()) setTray(false);
 }
@@ -1372,7 +1537,7 @@ $('#surprise').addEventListener('click',()=>surprise());
 $('#qPlay').addEventListener('click',()=>{ if(autoplay) setAutoplay(false); else surprise(); });
 $('#qPlay').addEventListener('dblclick',()=>setAutoplay(true));
 $('#autoplay').addEventListener('change',e=>setAutoplay(e.target.checked));
-$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); freshBoard(); setSlider('coil',0); resetCoverage(); genPattern=true; f(); showRecipe(k); if(phone()) setTray(false); } });
+$('#preset').addEventListener('change',e=>{ const k=e.target.value, f=PRESETS[k]; e.target.value=''; if(f){ track('example-'+k); freshBoard(); setSlider('coil',0); resetCoverage(); genPattern=true; clearSeed(); f(); showRecipe(k); if(phone()) setTray(false); } });
 view.addEventListener('pointerup',release); view.addEventListener('pointercancel',release);
 
 function catchCan(){demo=null;relaunch=[];grabbed=false;running=false;flowing=false;can.p=[0,0,P.L];can.v=[0,0,0];bd.p=[0,0,P.L2];bd.v=[0,0,0];sprev=[];qprev=null}
@@ -1444,7 +1609,8 @@ function boardBlob(type='image/png',q){ rebuild(); const c=document.createElemen
 const CRC32=(()=>{const t=new Int32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c}
   return b=>{let c=-1;for(let i=0;i<b.length;i++)c=t[(c^b[i])&255]^(c>>>8);return (c^-1)>>>0}})();
 const latin1=str=>Uint8Array.from(str,ch=>ch.charCodeAt(0)&255);
-const PNG_META=()=>[['Title',SIGN.app],['Author',SIGN.name],['Copyright','\u00a9 '+new Date().getFullYear()+' '+SIGN.name],['Software',SIGN.app+' (https://'+SIGN.url+'/)'],['Source','https://'+SIGN.url+'/'],['Comment','Made with '+SIGN.app+' by '+SIGN.name+', https://'+SIGN.url+'/']];
+const PNG_META=()=>[['Title',SIGN.app+(curSeed?' \u2014 '+curSeed.token:'')],['Author',SIGN.name],['Copyright','\u00a9 '+new Date().getFullYear()+' '+SIGN.name],['Software',SIGN.app+' (https://'+SIGN.url+'/)'],['Source','https://'+SIGN.url+'/'],['Comment','Made with '+SIGN.app+' by '+SIGN.name+', https://'+SIGN.url+'/']]
+  .concat(curSeed?[['Seed',curSeed.token],['Recipe',seedURL(curSeed.token)]]:[]);
 async function pngWithText(blob){
   try{
     const src=new Uint8Array(await blob.arrayBuffer()); if(src.length<33||src[1]!==0x50) return blob;
@@ -1455,7 +1621,26 @@ async function pngWithText(blob){
     return new Blob([out],{type:'image/png'});
   }catch(e){ return blob; }
 }
-const fileStem=()=>'paint-pendulum-by-dusko-delic-';
+/* The print path. Every dab was recorded in board-frame metres, not pixels, so the whole picture re-draws at any
+   size from what is already in memory: a print is the picture that was actually painted, not a second run of the
+   physics that might land a droplet somewhere else. `longEdge` is the wanted pixel size of the board's long side
+   (A2 at 300 dpi is about 7000). The canvas cap is 8192 a side. */
+let printing=false;
+async function printBlob(longEdge){
+  boardPx();
+  const want=Math.max(64,Math.min(8192,Math.round(longEdge||2400))), old=dpr;
+  printing=true;
+  try{
+    dpr=Math.max(0.05,Math.min(8192/Math.max(B.w,B.h),want/Math.max(B.w,B.h)));
+    rebuild();
+    const c=document.createElement('canvas'); c.width=paint.width; c.height=paint.height;
+    const x=c.getContext('2d'); x.fillStyle=boardCol; x.fillRect(0,0,c.width,c.height); x.drawImage(paint,0,0);
+    drawSign(x,0,0,c.width,c.height,dpr);
+    const out=await new Promise(r=>c.toBlob(r,'image/png'));
+    return await pngWithText(out);
+  } finally { dpr=old; printing=false; rebuild(); }
+}
+const fileStem=()=>'paint-pendulum-by-dusko-delic-'+(curSeed?curSeed.token+'-':'');
 async function save(){ track('save'); saveBlob(await pngWithText(await boardBlob()),fileStem()+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png'); }
 async function saveBlob(blob,name){
   // inside the claude.ai viewer the page cannot download by itself; the viewer's download capability saves it
@@ -1758,6 +1943,7 @@ $('#lost').addEventListener('click',()=>{ pan={x:0,y:0}; savePan(); bd.ang=0; st
 let last=performance.now(),acc=0,uiT=0;
 function frame(now){
   const el=Math.min(0.05,(now-last)/1000); last=now; acc+=el;
+  if(printing||stepping){ acc=0; requestAnimationFrame(frame); return; }   // a print or a headless run owns the paint layer
   boardPx(); { const [ax,ay]=apx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x-ax,B.y-ay,B.w,B.h); pctx.clip(); }
   let n=0; if(paused) acc=0; while(acc>=DT&&n<14){step(DT);acc-=DT;n++} if(n>=14)acc=0;
   pctx.restore();
@@ -1765,6 +1951,44 @@ function frame(now){
   uiT+=el; if(uiT>0.1){uiT=0; if(autoplay===true) autoTick(); movieTick(); lostCheck();$('#loops').textContent=Math.floor(Math.abs(angAcc)/TAU);$('#clock').textContent=T.toFixed(1);$('#level').textContent=Math.round(level*100)}
   requestAnimationFrame(frame);
 }
+/* A small door for the machines: the print renderer, and the harness that judges a batch of patterns. Everything
+   here is the same code the screen uses — a picture is composed, run on the simulation clock rather than the wall
+   clock (so a minute of swing takes about a second), and handed back at whatever size is asked for. */
+let stepping=false;
+function runPattern(maxT){
+  if(stepping) return 0;
+  stepping=true;
+  try{
+    let t=0; const lim=maxT||120;
+    boardPx(); const [ax,ay]=apx(); pctx.save(); pctx.beginPath(); pctx.rect(B.x-ax,B.y-ay,B.w,B.h); pctx.clip();
+    while(t<lim&&(running||relaunch.length)){ step(DT); t+=DT; }
+    pctx.restore();
+    return t;
+  } finally { stepping=false; }
+}
+window.PP={
+  version:SEED_V,
+  token:()=>curSeed&&curSeed.token,
+  pack:packSeed, unpack:unpackSeed,
+  /* compose a picture: a token to repaint one, a family name to force a figure, nothing for a fresh roll */
+  paint(tok,family){
+    const r=tok?unpackSeed(tok):null;
+    if(tok&&!r) throw new Error('not a seed: '+tok);
+    surprise(family||null,r?{seed:r.seed,geom:r.geom,scheme:r.scheme}:{});
+    return curSeed.token;
+  },
+  run:runPattern,
+  blob:printBlob,
+  ink:()=>inkStats(),
+  /* what came out: enough to tell two runs apart without looking at pixels */
+  /* quantised to a tenth of a millimetre. Two runs that put every dab there are the same picture: that is still
+     ten times finer than a pixel at any size the board is ever drawn, and comparing raw doubles only measures
+     float noise far below what can be seen or printed. */
+  stats(){ let n=0,sum=0; for(const sw of swings){ n+=sw.pts.length/4;
+      for(let i=0;i<sw.pts.length;i++) sum=(sum+Math.round(sw.pts[i]*1e4)*7919)%1e9; }
+    return {seed:curSeed&&curSeed.token,swings:swings.length,dabs:n,checksum:Math.round(sum),T:+T.toFixed(3),
+            board:boardCol,cols:cols.slice(0,6),mode:P.mode,geom:curSeed&&curSeed.geom}; },
+};
 function syncHint(){ $('#hintSmall').textContent = phone()
   ? 'Or tap Surprise and just watch. Tap the board to catch the can. Drag a corner to resize the board, the handle on its top edge to move it, two fingers to pan. Tap More, then ?, for everything else.'
   : 'Or press Surprise me and just watch. Tap the board to catch it, press ? for all the controls. Edges resize the board, the top handle moves it under the pendulum; right-drag, two fingers or arrow keys pan the view'; }
@@ -1775,6 +1999,16 @@ addEventListener('resize',resize); resize(); requestAnimationFrame(frame);
   const q=new URLSearchParams(location.search);
   if(q.get('source')==='play') track('android-app');
   if(q.has('scheme')) setScheme(q.get('scheme'),true);
+  /* somebody has been sent a picture: paint that one and stop there, rather than opening the rotation */
+  if(q.has('r')){
+    const r=unpackSeed(q.get('r'));
+    if(r){ try{localStorage.setItem('pp-seen','1')}catch(e){}
+      setAutoplay(false);
+      requestAnimationFrame(()=>{ surprise(null,{seed:r.seed,geom:r.geom,scheme:r.scheme});
+        $('#recipe').hidden=phone(); recipeMini(); track('seed-open'); });
+      return; }
+    toast('That is not a seed I recognise',4000);
+  }
   if(q.has('wallpaper')){ wallpaper=true; track('wallpaper'); }   // Lively, Wallpaper Engine and the like
   if(q.has('theatre')||wallpaper){ try{localStorage.setItem('pp-seen','1')}catch(e){} setTheatre(true,{silent:true}); document.body.classList.add('still'); track('screensaver'); return; }
   if(!seen){ try{localStorage.setItem('pp-seen','1')}catch(e){}
