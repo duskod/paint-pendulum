@@ -1,8 +1,15 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.clockerly.pendulum",
-    "sha256_cert_fingerprints": ["18:7D:81:11:30:D3:DB:EA:A7:3A:BF:65:C0:35:77:54:20:2E:B6:87:82:A5:B5:3B:40:9A:9F:34:D0:CF:05:E3"]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.clockerly.pendulum",
+      "sha256_cert_fingerprints": [
+        "18:7D:81:11:30:D3:DB:EA:A7:3A:BF:65:C0:35:77:54:20:2E:B6:87:82:A5:B5:3B:40:9A:9F:34:D0:CF:05:E3",
+        "AA:DE:EB:70:3B:CC:B1:3B:4C:85:9F:E4:F1:73:DF:0A:43:F8:56:29:00:F1:7E:67:6A:8D:3C:A3:DC:2E:17:37"
+      ]
+    }
   }
-}]
+]
